@@ -1,4 +1,4 @@
-# Landscape colorization
+# Landscape colorization using CNN
 
 This project is developed in the context of the lecture "194.077 Applied Deep Learning" form the TU Wien. 
 
@@ -14,12 +14,14 @@ This project aims to use convolutional neural network to do landscape image colo
 Image colorization is a popular topic in the field of image processing, and despite the substantial 
 amount of effort invested in research, there always seems to be room for improvement.
 
-The paper **Colorful Image Colorization** from Zhang et al showed a great improvement in image 
+The paper **Colorful Image Colorization** from Zhang et al [[1]](#references) showed a great improvement in image 
 colorization using a clever idea of color categorization and re-balancing classes. It inspired a 
-lot Chen et al for the paper **Image Colorization Algorithm Based on Deep Learning** where they 
+lot Chen et al for the paper **Image Colorization Algorithm Based on Deep Learning** [[2]](#references) where they 
 improved the neuron network architecture and used different activation functions. In practise they 
 focused on faces colorization what inspired this project with the idea of using deep learning to 
-train a colorization cnn specialized in landscapes. 
+train a colorization cnn specialized in landscapes. We will at first try to implement the CU-net network and train it
+on the landscape dataset describe bellow. Then we will try to improve it by using different activation functions or 
+convolutional layers.  
 
 
 ### Dataset 
@@ -46,13 +48,15 @@ This project will be held in 6 phases:
 
 ### Additional information 
 
-**Project type:** *beat the stars:*  The aim will be to beat the CNN from the Colorful Image Colorization paper on landscape colorization.
+**Project type:** *beat the stars:* The aim will 
+be to beat the CNN from the Colorful Image Colorization paper 
+on landscape colorization.
 
 ## References
 
-**Paper 1:** Zhang, R., Isola, P., Efros, A.A. (2016). Colorful Image Colorization. In: Leibe, B., Matas, J., Sebe, N., Welling, M. (eds) Computer Vision – ECCV 2016. ECCV 2016. Lecture Notes in Computer Science(), vol 9907. Springer, Cham. https://doi.org/10.1007/978-3-319-46487-9_40
+**Paper 1:** {#paper1} Zhang, R., Isola, P., Efros, A.A. (2016). Colorful Image Colorization. In: Leibe, B., Matas, J., Sebe, N., Welling, M. (eds) Computer Vision – ECCV 2016. ECCV 2016. Lecture Notes in Computer Science(), vol 9907. Springer, Cham. https://doi.org/10.1007/978-3-319-46487-9_40
 
-**Paper 2:** Wang, N.; Chen, G.-D.; Tian, Y. Image Colorization Algorithm Based on Deep Learning. Symmetry 2022, 14, 2295. https://doi.org/10.3390/sym14112295
+**Paper 2:** {#paper2} Wang, N.; Chen, G.-D.; Tian, Y. Image Colorization Algorithm Based on Deep Learning. Symmetry 2022, 14, 2295. https://doi.org/10.3390/sym14112295
 
 **Dataset:** Rougetet Arnaud, Landscape Pictures (2020), https://www.kaggle.com/datasets/arnaud58/landscape-pictures
 
