@@ -26,15 +26,15 @@ class Test(TestCase):
         tensor = class2ab(classes)
 
         #A
-        assert(tensor[0, 0, 0, 0] == 0.5)
-        assert(tensor[0, 0, 0, 1] == 2.5)
-        assert(tensor[0, 0, 1, 0] == 3.5)
-        assert(tensor[0, 0, 1, 1] == 9.5)
+        assert(tensor[0, 0, 0, 0] == 0.05)
+        assert(tensor[0, 0, 0, 1] == 0.25)
+        assert(tensor[0, 0, 1, 0] == 0.35)
+        assert(tensor[0, 0, 1, 1] == 0.95)
         #B
-        assert(tensor[0, 1, 0, 0] == 0.5)
-        assert(tensor[0, 1, 0, 1] == 5.5)
-        assert(tensor[0, 1, 1, 0] == 4.5)
-        assert(tensor[0, 1, 1, 1] == 9.5)
+        assert(tensor[0, 1, 0, 0] == 0.05)
+        assert(tensor[0, 1, 0, 1] == 0.55)
+        assert(tensor[0, 1, 1, 0] == 0.45)
+        assert(tensor[0, 1, 1, 1] == 0.95)
 
         return 0
 
