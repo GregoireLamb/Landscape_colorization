@@ -1,3 +1,8 @@
 /.idea/*
-/data/*
+/data*/*
 /venv/*
+/src/outputs*
+/src/test_*
+/src/checkpoints*
+/src/__pycache__*
+launch.bat

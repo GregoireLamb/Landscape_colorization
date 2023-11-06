@@ -1,10 +1,9 @@
-import numpy as np
-import progress
-import torch
-import time
 import os
 import sys
+
 from alive_progress import alive_bar
+from skimage.color import xyz2rgb
+from skimage.color.colorconv import _prepare_colorarray, get_xyz_coords
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -19,8 +18,8 @@ def main():
     # Check if GPU is available
     use_gpu = torch.cuda.is_available()
     model = Cu_net()
-    epochs = 1
-    batch_size = 1
+    epochs = 15
+    batch_size = 16
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=0.0)
 
@@ -75,7 +74,8 @@ def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None):
   color_image = color_image.transpose((1, 2, 0))  # rescale for matplotlib
   color_image[:, :, 0:1] = color_image[:, :, 0:1] * 100
   color_image[:, :, 1:3] = color_image[:, :, 1:3] * 255 - 128
-  color_image = lab2rgb(color_image.astype(np.float64))
+  # color_image = lab2rgb(color_image.astype(np.float64))
+  color_image = lab_to_rgb(color_image.astype(np.float64))
 
   grayscale_input = grayscale_input.squeeze().numpy()
   if save_path is not None and save_name is not None:
@@ -148,16 +148,35 @@ def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save
             bar()
 
 
-def lab_to_rgb(l, ab):
-    plt.clf()  # clear matplotlib
-    color_image = torch.cat((l, ab), 0).numpy()  # combine channels
-    color_image = color_image.transpose((1, 2, 0))  # rescale for matplotlib
-    color_image[:, :, 0:1] = color_image[:, :, 0:1] * 100
-    color_image[:, :, 1:3] = color_image[:, :, 1:3] * 255 - 128
-    color_image = lab2rgb(color_image.astype(np.float64))
-    #print image
-    plt.imshow(color_image)
-    plt.show()
+def lab_to_rgb(lab, illuminant="D65", observer="2", *, channel_axis=-1):
+    return xyz2rgb(custom_lab2xyz(lab, illuminant, observer))
+
+def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
+    arr = _prepare_colorarray(lab, channel_axis=-1).copy()
+
+    L, a, b = arr[..., 0], arr[..., 1], arr[..., 2]
+    y = (L + 16.) / 116.
+    x = (a / 500.) + y
+    z = y - (b / 200.)
+
+    if np.any(z < 0):
+        invalid = np.nonzero(z < 0)
+        warning('Color data out of range: Z < 0 in %s pixels' % invalid[0].size)
+        z[invalid] = 0
+        x[invalid] = 0
+        y[invalid] = 0
+
+    out = np.stack([x, y, z], axis=-1)
+
+    mask = out > 0.2068966
+    out[mask] = np.power(out[mask], 3.)
+    out[~mask] = (out[~mask] - 16.0 / 116.) / 7.787
+
+    # rescale to the reference white (illuminant)
+    xyz_ref_white = get_xyz_coords(illuminant, observer)
+    out *= xyz_ref_white
+    return out
+
 
 if __name__ == "__main__":
     main()

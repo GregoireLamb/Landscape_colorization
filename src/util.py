@@ -1,6 +1,6 @@
 import math
 import torch
-
+from logging import warn, warning
 
 def class2ab(te):
     """
@@ -12,8 +12,7 @@ def class2ab(te):
         for i in range(te.shape[1]):
             for j in range(te.shape[2]):
                 #TODO adapt for variable amount of classes
-                ab[s, 0, i, j] = (te[s, i, j].item()//10+0.5)/10
-                ab[s, 1, i, j] = (te[s, i, j].item()%10+0.5)/10
+                ab[s, 0, i, j], ab[s, 1, i, j] = class2a_b_float(te[s, i, j].item())
     return ab
 
 def prob2class(te):
@@ -42,7 +41,7 @@ def ab2class(te):
     for s in range(te.shape[0]):
         for i in range(te.shape[2]):
             for j in range(te.shape[3]):
-                classes[s, i, j] = math.floor(te[s, 0, i, j].item() * 10) * 10 + math.floor(te[s, 1, i, j].item() * 10)
+                classes[s, i, j] =a_b_float2class(te[s, 0, i, j].item(), te[s, 1, i, j].item())
     return classes
 
 def ab2prob(te, n_classes=100):
@@ -55,7 +54,7 @@ def ab2prob(te, n_classes=100):
     for s in range(te.shape[0]):
         for i in range(te.shape[2]):
             for j in range(te.shape[3]):
-                prob[s, math.floor(te[s, 0, i, j].item() * 10) * 10 + math.floor(te[s, 1, i, j].item() * 10) , i, j] = 1
+                prob[s, a_b_float2class(te[s, 0, i, j].item(), te[s, 1, i, j].item()), i, j] = 1
     return prob
 
 def a_b_float2class(a,b, n_classes=313):
@@ -66,19 +65,22 @@ def a_b_float2class(a,b, n_classes=313):
     :return: class [0,n_classes-1]
     """
     #TODO adapt shape
-    return math.floor(value * 10) * 10
+    if not (0 <= a <= 1 and 0 <= b <= 1) :
+        warning("a or b not in [0,1], class = -1")
+        return -1
 
+    return math.floor(a * 10) * 10 + math.floor(b*10)
 
-class AverageMeter(object):
-  '''A handy class from the PyTorch ImageNet tutorial'''
-  def __init__(self):
-    self.reset()
-  def reset(self):
-    self.val, self.avg, self.sum, self.count = 0, 0, 0, 0
-  def update(self, val, n=1):
-    self.val = val
-    self.sum += val * n
-    self.count += n
-    self.avg = self.sum / self.count
+def class2a_b_float(cl, n_classes=313):
+    """
+    :param cl: [0,n_classes-1]
+    :param n_classes: default 313
+    :return: (a,b) [0,1]
+    """
+    #TODO adapt shape
+    # if n_classes == 200:
+    #     return ((cl // 20 + 0.25) / 10, (cl % 10 + 0.5) / 20)
+    return ((cl // 10) / 10, (cl % 10) / 10 )
+
 
 
