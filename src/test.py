@@ -1,6 +1,7 @@
 import os
 from unittest import TestCase
 
+import numpy as np
 import torch
 
 from src.GrayscaleImageFolder import GrayscaleImageFolder
@@ -73,17 +74,17 @@ class Test(TestCase):
         assert(classes[0, 1, 1] == 2)
         return 0
 
-    def test_ab2prob(self):
-        tensor = torch.tensor([[[[0.11, 0.21],
-                                 [0.01, 0.61]],
-                                [[0.31, 0.41],
-                                 [0.41, 0.61]]]])
-        prob = ab2prob(tensor)
-        assert(len(prob.shape) == 4)
-        assert(prob[0, 66, 1, 1] == 1)
-        assert(prob[0, 55, 1, 1] == 0)
-        assert(prob[0, 24, 0, 1] == 1)
-        return 0
+    # def test_ab2prob(self):
+    #     tensor = torch.tensor([[[[0.11, 0.21],
+    #                              [0.01, 0.61]],
+    #                             [[0.31, 0.41],
+    #                              [0.41, 0.61]]]])
+    #     prob = ab2prob(tensor)
+    #     assert(len(prob.shape) == 4)
+    #     assert(prob[0, 66, 1, 1] == 1)
+    #     assert(prob[0, 55, 1, 1] == 0)
+    #     assert(prob[0, 24, 0, 1] == 1)
+    #     return 0
 
     def test_all_colors (self):
         L = 80
@@ -141,13 +142,13 @@ class Test(TestCase):
             use_gpu = True
             if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
 
-            input_ab = class2ab(ab2class(input_ab))
+            input_ab = prob2ab(ab2prob(input_ab), temperature=1)
             for j in range(min(len(input_gray), 5)):  # save at most 5 images
                 save_path = {'grayscale': 'test_recolor/gray/', 'colorized': 'test_recolor/color/'}
-                save_name = "img-seen2-{}.jpg".format(i)
+                save_name = "img2-{}.jpg".format(i)
                 to_rgb(input_gray[j].cpu(), input_ab[j].detach().cpu(), save_path=save_path, save_name=save_name)
 
-        return 0
+        return 1
 
     def test_colorize_from_model (self):
         test_transforms = transforms.Compose([])
@@ -176,6 +177,50 @@ class Test(TestCase):
 
         return 0
 
+    def test_gaussian(self):
+        sig = 0.2
+        # plot a function chart of the gaussian function
+        val = np.zeros(100)
+        for dist in range(0, 100):
+            coefficient = 1 / (math.sqrt(2 * math.pi) * sig)
+            exponent = -((dist/100*0.15)** 2) / (2 * sig ** 2)
+            print(f"{(dist/100*0.15)}")
+            val[dist] = coefficient * math.exp(exponent)/2
 
+        plt.plot(val)
+        #plot y axis from 0 to 1
+        # plt.ylim(0, 0.04)
+        plt.show()
+        return 0
 
+    def test_prob2ab(self):
+        test_transforms = transforms.Compose([])
+        test_imagefolder = GrayscaleImageFolder('../data_test', test_transforms)
+        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=True)
 
+        os.makedirs('test_recolor_smoothiest/gray/', exist_ok=True)
+        os.makedirs('test_recolor_smoothiest/color/', exist_ok=True)
+
+        for i, (input_gray, input_ab, target) in enumerate(test_transforms):
+            use_gpu = True
+            if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
+
+            input_ab = prob2ab(ab2prob(input_ab, neighbooring_class=4))
+
+            for j in range(min(len(input_gray), 5)):  # save at most 5 images
+                save_path = {'grayscale': 'test_recolor_smoothiest/gray/', 'colorized': 'test_recolor_smoothiest/color/'}
+                save_name = "img-seen2-{}.jpg".format(i)
+                to_rgb(input_gray[j].cpu(), input_ab[j].detach().cpu(), save_path=save_path, save_name=save_name)
+
+        return 0
+
+    def test_ab2prob2(self): # seems ok
+        te = torch.tensor([[[[0.05, 0],
+                             [0, 0]],
+                             [[0.05, 0],
+                             [0, 0]]]], dtype=torch.float32).cuda()
+        print(te.shape)
+        prob = ab2prob(te)
+        print(prob.shape)
+        print(prob)
+        return 0

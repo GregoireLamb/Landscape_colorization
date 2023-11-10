@@ -16,18 +16,10 @@ class GrayscaleImageFolder(datasets.ImageFolder):
           img_lab = (img_lab + 128) / 255 #nomarlise to [0,1]
           img_ab = img_lab[:, :, 1:3] # get ab channels
           img_ab = torch.from_numpy(img_ab.transpose((2, 0, 1))).float() # change to pytorch tensor, ab channel - height - width
-          # img_original = self.rgbtograyscale(img_original)
           # TODO change L
           img_original = rgb2gray(img_original)
           img_original = torch.from_numpy(img_original).unsqueeze(0).float()
       if self.target_transform is not None:
-          target = self.target_transform(target)
+          target = torch.Tensor(self.target_transform(target), dtype=torch.long)
       return img_original, img_ab, target
 
-  # def rgbtograyscale(self, rgb):
-  #     wR = 0.290
-  #     wG = 0.587
-  #     wB = 0.114
-  #
-  #     coeff = np.array([wR, wG, wB])
-  #     return rgb @ coeff

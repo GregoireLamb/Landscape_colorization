@@ -19,9 +19,13 @@ def main():
     use_gpu = torch.cuda.is_available()
     model = Cu_net()
     epochs = 15
-    batch_size = 16
+    batch_size = 4
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=0.0)
+    optimizer = torch.optim.Adam(model.parameters())
+    save_images =True
+    best_losses = 1e10
+    T = 1 # temperature
+    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=0.0)
 
     print("[LANDSCAPE COLORIZATION]\n")
     print("Parameters:")
@@ -50,8 +54,6 @@ def main():
     os.makedirs('outputs/color', exist_ok=True)
     os.makedirs('outputs/gray', exist_ok=True)
     os.makedirs('checkpoints', exist_ok=True)
-    save_images = True
-    best_losses = 1e10
 
     # Train model
     print("Start training")
@@ -59,8 +61,8 @@ def main():
         # Train for one epoch, then validate
         train(train_loader, model, criterion, optimizer, epoch)
         with torch.no_grad():
-            losses = validate(val_loader, model, criterion, save_images, epoch)
-        # Save checkpoint and replace old best model if current model is better
+            losses = validate(val_loader, model, criterion, save_images, epoch, temperature=T)
+        # Save checkpoint and store best model if current model is better
         if losses < best_losses:
             best_losses = losses
             torch.save(model.state_dict(), 'checkpoints/model-epoch-{}-losses-{:.3f}.pth'.format(epoch + 1, losses))
@@ -74,7 +76,6 @@ def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None):
   color_image = color_image.transpose((1, 2, 0))  # rescale for matplotlib
   color_image[:, :, 0:1] = color_image[:, :, 0:1] * 100
   color_image[:, :, 1:3] = color_image[:, :, 1:3] * 255 - 128
-  # color_image = lab2rgb(color_image.astype(np.float64))
   color_image = lab_to_rgb(color_image.astype(np.float64))
 
   grayscale_input = grayscale_input.squeeze().numpy()
@@ -83,33 +84,27 @@ def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None):
     plt.imsave(arr=color_image, fname='{}{}'.format(save_path['colorized'], save_name))
 
 
-def validate(val_loader, model, criterion, save_images, epoch,use_gpu = True):
+def validate(val_loader, model, criterion, save_images, epoch, temperature, use_gpu=True):
     model.eval()
-
-    # Prepare value counters and timers
-    # batch_time, data_time, losses = AverageMeter(), AverageMeter(), AverageMeter()
-
-    # end = time.time()
     losses = 0
     count = 0
     already_saved_images = False
     with alive_bar(total=len(val_loader), title="Valid epoch: [{0}]".format(epoch),
                    spinner='classic') as bar:  # len(train_loader) = n_batches
         for i, (input_gray, input_ab, target) in enumerate(val_loader):
-            # data_time.update(time.time() - end)
             if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
 
             # Run model and record loss
             output_prob = model(input_gray) # -> batch*256*256*100
             output_prob = torch.flatten(output_prob, start_dim=2).cuda()
-            input_ab_class = torch.flatten(ab2class(input_ab), start_dim=1).cuda()
+            input_ab_class = torch.flatten(ab2class(input_ab), start_dim=1).long().cuda()
             loss = criterion(output_prob, input_ab_class)
             losses += loss.item()
             count += 1
 
             unflatten = torch.nn.Unflatten(2, (256, 256))# TODO adapt hard coded values
             output_prob = unflatten(output_prob)
-            output_ab = prob2class(output_prob)
+            output_ab = ab2class(prob2ab(output_prob, temperature=temperature))
             output_ab = class2ab(output_ab)
             # Save images to file
             if save_images and not already_saved_images:
@@ -180,4 +175,3 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
 
 if __name__ == "__main__":
     main()
-    # test()

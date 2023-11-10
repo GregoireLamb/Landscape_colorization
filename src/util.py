@@ -1,6 +1,9 @@
 import math
+
+import scipy.stats
 import torch
 from logging import warn, warning
+
 
 def class2ab(te):
     """
@@ -8,11 +11,12 @@ def class2ab(te):
     :return: torch.Size([1, 2, 256, 256]): batch_size, ab, height, width
     """
     ab = torch.zeros(te.shape[0], 2, te.shape[1], te.shape[2], dtype=torch.float32)
-    for s in range(te.shape[0]):
-        for i in range(te.shape[1]):
-            for j in range(te.shape[2]):
-                #TODO adapt for variable amount of classes
-                ab[s, 0, i, j], ab[s, 1, i, j] = class2a_b_float(te[s, i, j].item())
+    a_channel, b_channel = class2a_b_float(te)
+
+    # Assign values to the corresponding channels in the output tensor
+    ab[:, 0, :, :] = a_channel
+    ab[:, 1, :, :] = b_channel
+
     return ab
 
 def prob2class(te):
@@ -30,31 +34,44 @@ def prob2class(te):
                 classes[s, i, j] = torch.argmax(te[s, :, i, j], dim=0)
     return classes
 
+
 def ab2class(te):
     """
     :param te: torch.Size([1, 2, 256, 256]): batch_size, ab, height, width
     :return: torch.Size([1, 256, 256]): batch_size, height, width (value = classes)
     """
-    #TODO adapt shape
-    prediction_grid_size = 10
-    classes = torch.zeros(te.shape[0],te.shape[2], te.shape[3], dtype=torch.long)
-    for s in range(te.shape[0]):
-        for i in range(te.shape[2]):
-            for j in range(te.shape[3]):
-                classes[s, i, j] =a_b_float2class(te[s, 0, i, j].item(), te[s, 1, i, j].item())
+    # Extract 'a' and 'b' channels
+    a_channel = te[:, 0, :, :]
+    b_channel = te[:, 1, :, :]
+
+    # Convert 'a' and 'b' channels to classes using a_b_float2class function
+    classes = a_b_float2class(a_channel, b_channel)
+
     return classes
 
-def ab2prob(te, n_classes=100):
+def ab2prob(te, n_classes=100, neighbooring_class=5):
     """
     :param te: torch.Size([1, 2, 256, 256]): batch_size, ab, height, width
     :return: torch.Size([1, 100, 256, 256]): batch_size, Q_truth, height, width
     1/0 for now
     """
-    prob = torch.zeros(te.shape[0], n_classes, te.shape[2], te.shape[3], requires_grad=True)
-    for s in range(te.shape[0]):
-        for i in range(te.shape[2]):
-            for j in range(te.shape[3]):
-                prob[s, a_b_float2class(te[s, 0, i, j].item(), te[s, 1, i, j].item()), i, j] = 1
+    batch_size, _, height, width = te.shape
+
+    a_values = te[:, 0, :, :].unsqueeze(1) # batch, height, width
+    b_values = te[:, 1, :, :].unsqueeze(1)
+
+    main_classes = a_b_float2class(a_values, b_values)# batch, height, width
+    neighbor_offsets = torch.tensor([-11, -10, -9, -1, 0, 1, 9, 10, 11]).unsqueeze(1).unsqueeze(1).cuda()  # torch.Size([5, 1, 1])
+    # neighbor_offsets = torch.tensor([0, 1, 10]).unsqueeze(1).unsqueeze(1).cuda()  # torch.Size([2, 1, 1]) TODO adapt for extrem values
+    neighbors_classes = main_classes.float() + neighbor_offsets
+    neighbors = torch.clamp(neighbors_classes, min=0, max=n_classes - 1).long()  # Convert to integer tensor
+
+    # Initialize the probability tensor with zeros
+    prob = torch.zeros(batch_size, n_classes, height, width).cuda()
+
+    # Assign values from the neighbors tensor to the corresponding positions in the probability tensor
+    prob.scatter_add_(1, neighbors,
+                      gaussian(a_values, b_values, neighbors_classes // 10 / 10 + 0.05, neighbors_classes % 10 / 10 + 0.05))
     return prob
 
 def a_b_float2class(a,b, n_classes=313):
@@ -64,12 +81,9 @@ def a_b_float2class(a,b, n_classes=313):
     :param n_classes: default 313
     :return: class [0,n_classes-1]
     """
-    #TODO adapt shape
-    if not (0 <= a <= 1 and 0 <= b <= 1) :
-        warning("a or b not in [0,1], class = -1")
-        return -1
+    #TODO adapt shape ?
+    return (torch.floor(a * 10) * 10 + torch.floor(b*10)).clone().detach()
 
-    return math.floor(a * 10) * 10 + math.floor(b*10)
 
 def class2a_b_float(cl, n_classes=313):
     """
@@ -78,9 +92,77 @@ def class2a_b_float(cl, n_classes=313):
     :return: (a,b) [0,1]
     """
     #TODO adapt shape
-    # if n_classes == 200:
-    #     return ((cl // 20 + 0.25) / 10, (cl % 10 + 0.5) / 20)
-    return ((cl // 10) / 10, (cl % 10) / 10 )
+    return ((cl // 10) / 10 + 0.05, (cl % 10) / 10 + 0.05 )
+
+
+
+"""
+prob2ab
+"""
+def prob2ab(te, n_classes=100, neighbooring_class=4, temperature=0.38):
+    """
+    :param tensor: te: torch.Size([1, 100, 256, 256]): batch_size, Q, height, width (value = prob, [0,1]
+    :return: ab: torch.Size([1, 2, 256, 256]): batch_size, ab, height, width (value = classes)
+    """
+    batch_size, _, height, width = te.shape
+
+    multiplication_factors_a = torch.tensor([(i) * 10 + 5 for i in range(10) for j in range(10)],
+                                            dtype=torch.float32).cuda()
+    multiplication_factors_b = torch.tensor([(i) * 10 + 5 for j in range(10) for i in range(10)],
+                                            dtype=torch.float32).cuda()
+
+    # Expand multiplication factors to match tensor shape
+    multiplication_factors_a = multiplication_factors_a.view(1, n_classes, 1, 1)
+    multiplication_factors_b = multiplication_factors_b.view(1, n_classes, 1, 1)
+
+    # "un gaussian" distances
+    # te = un_gaussian(te) #torch.Size([1, 100, 256, 256])
+
+    # Multiply tensor by factors
+    a_mult = te * multiplication_factors_a
+    b_mult = te * multiplication_factors_b
+
+    # Sum along the Q dimension and divide by the sum of the input tensor along the Q dimension
+    ab = torch.zeros(batch_size, 2, height, width, dtype=torch.float32).cuda()
+    ab[:, 0, :, :] = torch.exp(torch.log(torch.sum(a_mult, dim=1))/torch.tensor(temperature)) / torch.exp(torch.log((torch.sum(te, dim=1) * n_classes))/torch.tensor(temperature))
+    ab[:, 1, :, :] = torch.sum(b_mult, dim=1) / (torch.sum(te, dim=1) * n_classes)
+
+    return ab
+
+def gaussian(a,b, x, y, sig = 0.1):
+    """
+    :param a:  a truth
+    :param b: b truth
+    :param x: a_class
+    :param y: b_class
+    :param sig: gaussian sigma
+    :return: distance between a,b and x,y
+    """
+    dist = torch.sqrt((a - x) ** 2 + (b - y) ** 2) # euclidean distance
+    coefficient = 1 / (math.sqrt(2 * math.pi) * sig)
+    exponent = -(dist ** 2) / (2 * sig ** 2)
+    return coefficient * torch.exp(exponent)/2
+
+def un_gaussian(dist, sig=0.1):
+    """
+    :param dist: distance between a,b and x,y (gaussian)
+    :param sig: gaussian sigma
+    :return: euclidean distance
+    """
+    coefficient = 1 / (math.sqrt(2 * math.pi) * sig)
+    non_null_mask = (dist != 0)  # Create a mask for non-null values
+    non_null_indices = non_null_mask.nonzero(as_tuple=False).squeeze(1)#.unsqueeze(1) # Get indices of non-null values
+    non_null_dist = dist[non_null_mask]  # Apply mask to obtain non-null distances
+
+    edist = torch.sqrt(-2 * sig ** 2 * torch.log(non_null_dist / coefficient) / torch.log(torch.tensor(2.7182818284)))
+    euclidean_distance = torch.zeros_like(dist)
+
+    euclidean_distance[non_null_indices[:, 0],
+                        non_null_indices[:, 1],
+                        non_null_indices[:, 2],
+                        non_null_indices[:, 3]] = edist
+
+    return euclidean_distance
 
 
 
