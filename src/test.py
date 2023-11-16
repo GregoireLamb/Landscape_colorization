@@ -138,16 +138,25 @@ class Test(TestCase):
         os.makedirs('test_recolor/gray/', exist_ok=True)
         os.makedirs('test_recolor/color/', exist_ok=True)
 
+        predicted_colors = set()
+
         for i, (input_gray, input_ab, target) in enumerate(test_transforms):
+            print("Mean input gray ", torch.mean(input_gray))
+
             use_gpu = True
             if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
 
-            input_ab = prob2ab(ab2prob(input_ab), temperature=1)
+            prob = ab2prob(input_ab)
+            input_ab = prob2ab(prob, temperature=1)
+            for cl in torch.unique(input_ab):
+                predicted_colors.add(cl.item())
+
             for j in range(min(len(input_gray), 5)):  # save at most 5 images
                 save_path = {'grayscale': 'test_recolor/gray/', 'colorized': 'test_recolor/color/'}
                 save_name = "img2-{}.jpg".format(i)
                 to_rgb(input_gray[j].cpu(), input_ab[j].detach().cpu(), save_path=save_path, save_name=save_name)
-
+        print("len(predicted_colors)", len(predicted_colors))
+        print(len(predicted_colors))
         return 1
 
     def test_colorize_from_model (self):
@@ -217,10 +226,14 @@ class Test(TestCase):
     def test_ab2prob2(self): # seems ok
         te = torch.tensor([[[[0.05, 0],
                              [0, 0]],
-                             [[0.05, 0],
+                             [[0.15, 0],
                              [0, 0]]]], dtype=torch.float32).cuda()
         print(te.shape)
         prob = ab2prob(te)
         print(prob.shape)
         print(prob)
+
+        assert(prob[0, 0, 0, 0] == 0)
+        assert(prob[0, 0, 0, 1] == 1)
+        assert(prob[0, 1, 0, 0] == 1)
         return 0

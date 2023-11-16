@@ -32,9 +32,11 @@ class Cu_net(nn.Module):
     conv3_3 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1, bias=False)#64
 
     # output_size = strides * (input_size-1) + kernel_size - 2*padding
-    deconv1_1 = nn.ConvTranspose2d(in_channels=256 + 128, out_channels=128, kernel_size=4, stride=2, padding=1, bias=False)#128
+    deconv1_1 = nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=1, bias=False)#128
+    # deconv1_1 = nn.ConvTranspose2d(in_channels=256 + 128, out_channels=128, kernel_size=4, stride=2, padding=1, bias=False)#128
     deconv1_2 = nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)#128
-    deconv2_1 = nn.ConvTranspose2d(in_channels=128 + 64 , out_channels=64, kernel_size=4, stride=2, padding=1, bias=False)#256
+    deconv2_1 = nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=1, bias=False)#256
+    # deconv2_1 = nn.ConvTranspose2d(in_channels=128 + 64 , out_channels=64, kernel_size=4, stride=2, padding=1, bias=False)#256
     deconv2_2 = nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)#256
     deconv_3= nn.ConvTranspose2d(in_channels=64, out_channels=100, kernel_size=3, stride=1, padding=1, bias=False)#256
 
@@ -71,15 +73,17 @@ class Cu_net(nn.Module):
     conv2 = self.conv2(conv1)
     conv3 = self.conv3(conv2)
 
-    conv2 = conv2[:, :, :conv3.size(2), :conv3.size(3)]  # Adjust dimensions
-    torch.cat([conv3, conv2], dim=1)
+    # conv2 = conv2[:, :, :conv3.size(2), :conv3.size(3)]  # Adjust dimensions
+    # conv3 = torch.cat([conv3, conv2], dim=1)
 
-    deconv1 = self.deconv1(torch.cat([conv3, conv2], dim=1))
+    # deconv1 = self.deconv1(torch.cat([conv3, conv2], dim=1))
+    deconv1 = self.deconv1(conv3)
 
-    conv1 = conv1[:, :, :deconv1.size(2), :deconv1.size(3)]  # Adjust dimensions
-    torch.cat([conv1, deconv1], dim=1)
+    # conv1 = conv1[:, :, :deconv1.size(2), :deconv1.size(3)]  # Adjust dimensions
+    # torch.cat([conv1, deconv1], dim=1)
 
-    deconv2 = self.deconv2(torch.cat([deconv1, conv1], dim=1))
+    # deconv2 = self.deconv2(torch.cat([deconv1, conv1], dim=1))
+    deconv2 = self.deconv2(deconv1)
     deconv3 = self.deconv3(deconv2)
     return deconv3
 

@@ -8,6 +8,7 @@ from skimage.color.colorconv import _prepare_colorarray, get_xyz_coords
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.Cu_net import *
+from src.Cu_net_small import *
 from src.GrayscaleImageFolder import *
 from src.util import *
 import click
@@ -17,11 +18,13 @@ def main():
 
     # Check if GPU is available
     use_gpu = torch.cuda.is_available()
-    model = Cu_net()
-    epochs = 15
-    batch_size = 4
+    # model = Cu_net()
+    model = Cu_net_small()
+    epochs = 64
+    batch_size = 6
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters())
+    lr = 1.5e-2
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     save_images =True
     best_losses = 1e10
     T = 1 # temperature
@@ -35,11 +38,11 @@ def main():
     print("\tEpochs: {}".format(epochs))
     print("\tBatch size: {}".format(batch_size))
     print("\tCriterion: {}".format(criterion))
-    print("\tOptimizer: {}\n".format(optimizer.__class__.__name__))
+    print("\tOptimizer: {}, learningrate: {}\n".format(optimizer.__class__.__name__, lr))
 
 
     train_transforms = transforms.Compose([])
-    train_imagefolder = GrayscaleImageFolder('../data_train', train_transforms)
+    train_imagefolder = GrayscaleImageFolder('../data_train_80', train_transforms)
     train_loader = torch.utils.data.DataLoader(train_imagefolder, batch_size=batch_size, shuffle=True)
 
     val_transforms = transforms.Compose([])
@@ -127,7 +130,7 @@ def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save
             if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
 
             output_ab_class = model(input_gray)
-            input_ab_class= ab2class(input_ab)
+            input_ab_class = ab2class(input_ab)
             if use_gpu: output_ab_class, input_ab_class, target = output_ab_class.cuda(), input_ab_class.cuda(), target.cuda()
 
             # desire shape is batch, Q, x for output and batch, x for input
@@ -173,5 +176,34 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
     return out
 
 
+def get_empirical_distribution(path_to_images="../data_sq", n_classes=100):
+    imagefolder = GrayscaleImageFolder(path_to_images, transforms.Compose([]))
+    loader = torch.utils.data.DataLoader(imagefolder, batch_size=4, shuffle=True)
+
+    class_count = torch.zeros(n_classes)
+    for i, (_, inputab, _) in enumerate(loader):
+        target = ab2class(inputab).flatten()
+        class_count += torch.bincount(target, minlength=n_classes)
+        if i % 100 == 0:
+            print("i", i)
+        if i>1000:
+            break
+
+    class_distrib = class_count.view(10, 10)  # Assuming 10x10 grid, adjust accordingly
+    plt.imshow(class_distrib.numpy())
+    plt.colorbar()
+    plt.title("Empirical distribution of classes in training data")
+    plt.show()
+
+    class_count = torch.where(class_count > 0, torch.ones_like(class_count), class_count)
+    class_used = class_count.view(10, 10)  # Assuming 10x10 grid, adjust accordingly
+    plt.imshow(class_used.numpy())
+    plt.colorbar()
+    plt.title("class_used")
+    plt.show()
+
+    return 0
+
 if __name__ == "__main__":
-    main()
+    get_empirical_distribution()
+    # main()
