@@ -18,23 +18,23 @@ def main():
 
     # Check if GPU is available
     use_gpu = torch.cuda.is_available()
-    # model = Cu_net()
-    model = Cu_net_small()
+    model = Cu_net()
+    # model = Cu_net_small()
+    n_classes = 105
     epochs = 64
-    batch_size = 6
+    batch_size = 4
     criterion = nn.CrossEntropyLoss()
-    lr = 1.5e-2
+    lr = 1e-2
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     save_images =True
     best_losses = 1e10
     T = 1 # temperature
-    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=0.0)
 
     print("[LANDSCAPE COLORIZATION]\n")
     print("Parameters:")
     print("\tModel: {}".format(model.name))
+    print("\tn_classes: {}".format(n_classes))
     print("\tUsing GPU: {}".format(use_gpu))
-    print("\tModel: {}".format(model.name))
     print("\tEpochs: {}".format(epochs))
     print("\tBatch size: {}".format(batch_size))
     print("\tCriterion: {}".format(criterion))
@@ -42,7 +42,7 @@ def main():
 
 
     train_transforms = transforms.Compose([])
-    train_imagefolder = GrayscaleImageFolder('../data_train_80', train_transforms)
+    train_imagefolder = GrayscaleImageFolder('../data_train_20_mountains', train_transforms)
     train_loader = torch.utils.data.DataLoader(train_imagefolder, batch_size=batch_size, shuffle=True)
 
     val_transforms = transforms.Compose([])
@@ -62,9 +62,9 @@ def main():
     print("Start training")
     for epoch in range(epochs):
         # Train for one epoch, then validate
-        train(train_loader, model, criterion, optimizer, epoch)
+        train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes)
         with torch.no_grad():
-            losses = validate(val_loader, model, criterion, save_images, epoch, temperature=T)
+            losses = validate(val_loader, model, criterion, save_images, epoch, temperature=T, n_classes=n_classes)
         # Save checkpoint and store best model if current model is better
         if losses < best_losses:
             best_losses = losses
@@ -87,7 +87,7 @@ def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None):
     plt.imsave(arr=color_image, fname='{}{}'.format(save_path['colorized'], save_name))
 
 
-def validate(val_loader, model, criterion, save_images, epoch, temperature, use_gpu=True):
+def validate(val_loader, model, criterion, save_images, epoch, temperature, use_gpu=True, n_classes=105):
     model.eval()
     losses = 0
     count = 0
@@ -100,15 +100,15 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
             # Run model and record loss
             output_prob = model(input_gray) # -> batch*256*256*100
             output_prob = torch.flatten(output_prob, start_dim=2).cuda()
-            input_ab_class = torch.flatten(ab2class(input_ab), start_dim=1).long().cuda()
+            input_ab_class = torch.flatten(ab2class(input_ab, n_classes=n_classes), start_dim=1).long().cuda()
             loss = criterion(output_prob, input_ab_class)
             losses += loss.item()
             count += 1
 
             unflatten = torch.nn.Unflatten(2, (256, 256))# TODO adapt hard coded values
             output_prob = unflatten(output_prob)
-            output_ab = ab2class(prob2ab(output_prob, temperature=temperature))
-            output_ab = class2ab(output_ab)
+            output_ab = ab2class(prob2ab(output_prob, n_classes=n_classes, temperature=temperature))
+            output_ab = class2ab(output_ab, n_classes=n_classes)
             # Save images to file
             if save_images and not already_saved_images:
                 already_saved_images = True
@@ -122,15 +122,16 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
     return losses
 
 
-def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_images = True):
+def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_images = True, n_classes=105):
     model.train()
 
     with alive_bar(total=len(train_loader), title="Train epoch: [{0}]".format(epoch), spinner='classic') as bar: #len(train_loader) = n_batches
         for i, (input_gray, input_ab, target) in enumerate(train_loader):
-            if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
+            if use_gpu: input_gray, input_ab, target= input_gray.cuda(), input_ab.cuda(), target.cuda()
 
             output_ab_class = model(input_gray)
-            input_ab_class = ab2class(input_ab)
+            input_ab_class = ab2class(input_ab, n_classes=n_classes)
+
             if use_gpu: output_ab_class, input_ab_class, target = output_ab_class.cuda(), input_ab_class.cuda(), target.cuda()
 
             # desire shape is batch, Q, x for output and batch, x for input
@@ -176,27 +177,52 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
     return out
 
 
-def get_empirical_distribution(path_to_images="../data_sq", n_classes=100):
+def get_empirical_distribution(path_to_images="../data_sq", n_classes=105, cl=True):
     imagefolder = GrayscaleImageFolder(path_to_images, transforms.Compose([]))
-    loader = torch.utils.data.DataLoader(imagefolder, batch_size=4, shuffle=True)
+    loader = torch.utils.data.DataLoader(imagefolder, batch_size=32, shuffle=True)
 
     class_count = torch.zeros(n_classes)
     for i, (_, inputab, _) in enumerate(loader):
-        target = ab2class(inputab).flatten()
-        class_count += torch.bincount(target, minlength=n_classes)
-        if i % 100 == 0:
+        target = ab2class(inputab, n_classes=n_classes).flatten()
+
+        class_count += torch.bincount(target.cpu(), minlength=n_classes)
+        if i % 10 == 0:
             print("i", i)
-        if i>1000:
+        if i>100:
             break
 
-    class_distrib = class_count.view(10, 10)  # Assuming 10x10 grid, adjust accordingly
+
+    class2mapping = {
+            0: 25, 1: 26, 2: 27, 3: 40, 4: 41, 5: 42, 6: 51, 7: 52, 8: 53, 9: 54,
+            10: 55, 11: 56, 12: 57, 13: 64, 14: 65, 15: 66, 16: 67, 17: 68, 18: 69,
+            19: 70, 20: 71, 21: 72, 22: 79, 23: 80, 24: 81, 25: 82, 26: 83, 27: 84,
+            28: 85, 29: 86, 30: 87, 31: 93, 32: 94, 33: 95, 34: 96, 35: 97, 36: 98,
+            37: 99, 38: 100, 39: 101, 40: 102, 41: 108, 42: 109, 43: 110, 44: 111,
+            45: 112, 46: 113, 47: 114, 48: 115, 49: 116, 50: 117, 51: 123, 52: 124,
+            53: 125, 54: 126, 55: 127, 56: 128, 57: 129, 58: 130, 59: 131, 60: 132,
+            61: 136, 62: 137, 63: 138, 64: 139, 65: 140, 66: 141, 67: 142, 68: 143,
+            69: 144, 70: 145, 71: 146, 72: 147, 73: 150, 74: 151, 75: 152, 76: 153,
+            77: 154, 78: 155, 79: 156, 80: 157, 81: 158, 82: 159, 83: 160, 84: 165,
+            85: 166, 86: 167, 87: 168, 88: 169, 89: 170, 90: 171, 91: 172, 92: 173,
+            93: 174, 94: 175, 95: 180, 96: 182, 97: 183, 98: 184, 99: 185, 100: 186,
+            101: 187, 102: 188, 103: 189, 104: 190
+        }
+
+    class_count2 = torch.zeros(225)
+    for i, count in enumerate(class_count):
+        class_count2[class2mapping.get(i)] = count
+        if i==105:
+            class_count2[class2mapping.get(i)] = 0
+            print("Amount of error =", count)
+    class_distrib = class_count2.view(15, 15)  # Assuming 10x10 grid, adjust accordingly
+
     plt.imshow(class_distrib.numpy())
     plt.colorbar()
     plt.title("Empirical distribution of classes in training data")
     plt.show()
 
-    class_count = torch.where(class_count > 0, torch.ones_like(class_count), class_count)
-    class_used = class_count.view(10, 10)  # Assuming 10x10 grid, adjust accordingly
+    class_count = torch.where(class_count2 > 0, torch.ones_like(class_count2), class_count2)
+    class_used = class_count.view(15, 15)  # Assuming 10x10 grid, adjust accordingly
     plt.imshow(class_used.numpy())
     plt.colorbar()
     plt.title("class_used")
@@ -205,5 +231,5 @@ def get_empirical_distribution(path_to_images="../data_sq", n_classes=100):
     return 0
 
 if __name__ == "__main__":
-    get_empirical_distribution()
-    # main()
+    # get_empirical_distribution(path="../data_test", cl=False)
+    main()

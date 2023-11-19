@@ -17,10 +17,10 @@ import os, shutil, time
 
 
 class Cu_net(nn.Module):
-  def __init__(self, n_class=128):
+  def __init__(self):
     super(Cu_net, self).__init__()
     self.name = "Cu_net"
-    self.n_class = 100
+    self.n_class = 105
 
     # output_size = (input_size - kernel_size + 2*padding) / stride + 1
     conv1_1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)#256
@@ -38,7 +38,7 @@ class Cu_net(nn.Module):
     deconv2_1 = nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=1, bias=False)#256
     # deconv2_1 = nn.ConvTranspose2d(in_channels=128 + 64 , out_channels=64, kernel_size=4, stride=2, padding=1, bias=False)#256
     deconv2_2 = nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)#256
-    deconv_3= nn.ConvTranspose2d(in_channels=64, out_channels=100, kernel_size=3, stride=1, padding=1, bias=False)#256
+    deconv_3= nn.ConvTranspose2d(in_channels=64, out_channels=self.n_class, kernel_size=3, stride=1, padding=1, bias=False)#256
 
     # upx4_1 = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=False)
 
@@ -64,7 +64,7 @@ class Cu_net(nn.Module):
         deconv2_2, nn.BatchNorm2d(64), nn.Sigmoid())
 
     self.deconv3 = nn.Sequential(
-        deconv_3, nn.BatchNorm2d(100), nn.Sigmoid(),
+        deconv_3, nn.BatchNorm2d(self.n_class), nn.Sigmoid(),
     )
 
 

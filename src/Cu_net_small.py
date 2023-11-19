@@ -20,7 +20,7 @@ class Cu_net_small(nn.Module):
   def __init__(self, n_class=128):
     super(Cu_net_small, self).__init__()
     self.name = "Cu_net_small"
-    self.n_class = 100
+    self.n_class = 105
 
     # output_size = (input_size - kernel_size + 2*padding) / stride + 1
     conv1_1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)#256
@@ -29,8 +29,8 @@ class Cu_net_small(nn.Module):
 
     # output_size = strides * (input_size-1) + kernel_size - 2*padding
     deconv1_1 = nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)#64
-    deconv2_1 = nn.ConvTranspose2d(in_channels=128, out_channels=100, kernel_size=3, stride=1, padding=1, bias=False)#64
-    deconv_3= nn.ConvTranspose2d(in_channels=100, out_channels=100, kernel_size=3, stride=1, padding=1, bias=False)#256
+    deconv2_1 = nn.ConvTranspose2d(in_channels=128, out_channels=self.n_class, kernel_size=3, stride=1, padding=1, bias=False)#64
+    deconv_3= nn.ConvTranspose2d(in_channels=self.n_class, out_channels=self.n_class, kernel_size=3, stride=1, padding=1, bias=False)#256
 
     # upx1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
     upx2 = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True)
@@ -41,9 +41,9 @@ class Cu_net_small(nn.Module):
         conv3_1, nn.BatchNorm2d(256), nn.Sigmoid(),
         deconv1_1, nn.BatchNorm2d(128), nn.Sigmoid(),
         # upx1, nn.BatchNorm2d(128), nn.Sigmoid(),
-        deconv2_1, nn.BatchNorm2d(100), nn.Sigmoid(),
-        upx2, nn.BatchNorm2d(100), nn.Sigmoid(),
-        deconv_3, nn.BatchNorm2d(100), nn.Sigmoid(),
+        deconv2_1, nn.BatchNorm2d(self.n_class), nn.Sigmoid(),
+        upx2, nn.BatchNorm2d(self.n_class), nn.Sigmoid(),
+        deconv_3, nn.BatchNorm2d(self.n_class), nn.Sigmoid(),
     )
 
   def forward(self, input):
