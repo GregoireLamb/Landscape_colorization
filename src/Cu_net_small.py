@@ -28,26 +28,30 @@ class Cu_net_small(nn.Module):
     conv3_1 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1, bias=False)#64
 
     # output_size = strides * (input_size-1) + kernel_size - 2*padding
-    deconv1_1 = nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False)#64
-    deconv2_1 = nn.ConvTranspose2d(in_channels=128, out_channels=self.n_class, kernel_size=3, stride=1, padding=1, bias=False)#64
-    deconv_3= nn.ConvTranspose2d(in_channels=self.n_class, out_channels=self.n_class, kernel_size=3, stride=1, padding=1, bias=False)#256
+    deconv1_1 = nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=1, bias=False)#128
+    deconv2_1 = nn.ConvTranspose2d(in_channels=128+128, out_channels=self.n_class, kernel_size=4, stride=2, padding=1, bias=False)#256
+    deconv_3= nn.ConvTranspose2d(in_channels=self.n_class+64, out_channels=self.n_class, kernel_size=3, stride=1, padding=1, bias=False)#256
 
-    # upx1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-    upx2 = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True)
+    self.conv1 = nn.Sequential(conv1_1, nn.BatchNorm2d(64), nn.Sigmoid())
+    self.conv2 = nn.Sequential(conv2_1, nn.BatchNorm2d(128), nn.Sigmoid())
+    self.conv3 = nn.Sequential(conv3_1, nn.BatchNorm2d(256), nn.Sigmoid())
 
-    self.net = nn.Sequential(
-        conv1_1, nn.BatchNorm2d(64), nn.Sigmoid(),
-        conv2_1, nn.BatchNorm2d(128), nn.Sigmoid(),
-        conv3_1, nn.BatchNorm2d(256), nn.Sigmoid(),
-        deconv1_1, nn.BatchNorm2d(128), nn.Sigmoid(),
-        # upx1, nn.BatchNorm2d(128), nn.Sigmoid(),
-        deconv2_1, nn.BatchNorm2d(self.n_class), nn.Sigmoid(),
-        upx2, nn.BatchNorm2d(self.n_class), nn.Sigmoid(),
-        deconv_3, nn.BatchNorm2d(self.n_class), nn.Sigmoid(),
-    )
+    self.deconv1 = nn.Sequential(deconv1_1, nn.BatchNorm2d(128), nn.Sigmoid())
+    self.deconv2 = nn.Sequential(deconv2_1, nn.BatchNorm2d(self.n_class), nn.Sigmoid())
+    self.deconv3 = nn.Sequential(deconv_3, nn.BatchNorm2d(self.n_class), nn.Sigmoid())
+
+
 
   def forward(self, input):
-    return self.net(input)
+      conv1 = self.conv1(input)
+      conv2 = self.conv2(conv1)
+      conv3 = self.conv3(conv2)
+
+      deconv1 = self.deconv1(conv3)
+      deconv2 = self.deconv2(torch.cat([deconv1, conv2], dim=1))
+      deconv3 = self.deconv3(torch.cat([deconv2, conv1], dim=1))
+
+      return deconv3
 
 
 

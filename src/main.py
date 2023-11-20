@@ -18,13 +18,13 @@ def main():
 
     # Check if GPU is available
     use_gpu = torch.cuda.is_available()
-    model = Cu_net()
-    # model = Cu_net_small()
+    # model = Cu_net()
+    model = Cu_net_small()
     n_classes = 105
     epochs = 64
     batch_size = 4
     criterion = nn.CrossEntropyLoss()
-    lr = 1e-2
+    lr = 1.5e-2
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     save_images =True
     best_losses = 1e10
@@ -42,7 +42,7 @@ def main():
 
 
     train_transforms = transforms.Compose([])
-    train_imagefolder = GrayscaleImageFolder('../data_train_20_mountains', train_transforms)
+    train_imagefolder = GrayscaleImageFolder('../data_train', train_transforms)
     train_loader = torch.utils.data.DataLoader(train_imagefolder, batch_size=batch_size, shuffle=True)
 
     val_transforms = transforms.Compose([])
