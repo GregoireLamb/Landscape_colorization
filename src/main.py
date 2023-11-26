@@ -8,6 +8,7 @@ from skimage.color.colorconv import _prepare_colorarray, get_xyz_coords
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.Cu_net import *
+from src.U_net_small import *
 from src.Cu_net_small import *
 from src.GrayscaleImageFolder import *
 from src.util import *
@@ -19,7 +20,8 @@ def main():
     # Check if GPU is available
     use_gpu = torch.cuda.is_available()
     # model = Cu_net()
-    model = Cu_net_small()
+    model = U_net_small()
+    # model = Cu_net_small()
     n_classes = 105
     epochs = 64
     batch_size = 4

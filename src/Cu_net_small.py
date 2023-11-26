@@ -21,6 +21,7 @@ class Cu_net_small(nn.Module):
     super(Cu_net_small, self).__init__()
     self.name = "Cu_net_small"
     self.n_class = 105
+    self.custom_kernel = nn.Parameter(torch.Tensor([[[1, 0, 1], [0, 1, 0], [1, 0, 1]]]))
 
     # output_size = (input_size - kernel_size + 2*padding) / stride + 1
     conv1_1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)#256
