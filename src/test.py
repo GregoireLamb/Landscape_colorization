@@ -168,11 +168,11 @@ class Test(TestCase):
         test_imagefolder = GrayscaleImageFolder('../data_test', test_transforms)
         test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=True)
 
-        os.makedirs('test_model/cu_small_ep22/gray/', exist_ok=True)
-        os.makedirs('test_model/cu_small_ep22/color/', exist_ok=True)
+        os.makedirs('test_model/cu_medium_ep64/gray/', exist_ok=True)
+        os.makedirs('test_model/cu_medium_ep64/color/', exist_ok=True)
 
-        model = Cu_net_small()
-        model.load_state_dict(torch.load('../src/checkpoints/cu_small_epoch-22-losses-3.886.pth'))
+        model = Cu_net()
+        model.load_state_dict(torch.load('../src/checkpoints/cu_medium-epoch-64-losses-3.885.pth'))
         model.eval()
 
         for i, (input_gray, input_ab, target) in enumerate(test_transforms):
@@ -180,7 +180,7 @@ class Test(TestCase):
             output = prob2ab(model(input_gray), n_classes=105)
 
             for j in range(len(input_gray)):  # save at most 5 images
-                save_path = {'grayscale': 'test_model/cu_small_ep22/gray/', 'colorized': 'test_model/cu_small_ep22/color/'}
+                save_path = {'grayscale': 'test_model/cu_medium_ep64/gray/', 'colorized': 'test_model/cu_medium_ep64/color/'}
                 save_name = "img-{}.jpg".format(i)
                 to_rgb(input_gray[j].cpu(), output[j].detach().cpu(), save_path=save_path, save_name=save_name)
 

@@ -24,7 +24,7 @@ def main():
     # model = Cu_net_small()
     n_classes = 105
     epochs = 64
-    batch_size = 2
+    batch_size = 32
     criterion = nn.CrossEntropyLoss()
     lr = 1.5e-2
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -48,7 +48,7 @@ def main():
     train_loader = torch.utils.data.DataLoader(train_imagefolder, batch_size=batch_size, shuffle=True)
 
     val_transforms = transforms.Compose([])
-    val_imagefolder = GrayscaleImageFolder('../data_test', val_transforms)
+    val_imagefolder = GrayscaleImageFolder('../data_validation', val_transforms)
     val_loader = torch.utils.data.DataLoader(val_imagefolder, batch_size=batch_size, shuffle=False)
 
     if use_gpu:
