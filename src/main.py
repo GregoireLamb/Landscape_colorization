@@ -20,11 +20,12 @@ def main():
     # Check if GPU is available
     use_gpu = torch.cuda.is_available()
     model = Cu_net()
+    # model = Cu_net_medium()
     # model = U_net_small()
     # model = Cu_net_small()
     n_classes = 105
-    epochs = 64
-    batch_size = 32
+    epochs = 25
+    batch_size = 16
     criterion = nn.CrossEntropyLoss()
     lr = 1.5e-2
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -44,11 +45,11 @@ def main():
 
 
     train_transforms = transforms.Compose([])
-    train_imagefolder = GrayscaleImageFolder('../data_train', train_transforms)
+    train_imagefolder = GrayscaleImageFolder('../data/data_train', train_transforms)
     train_loader = torch.utils.data.DataLoader(train_imagefolder, batch_size=batch_size, shuffle=True)
 
     val_transforms = transforms.Compose([])
-    val_imagefolder = GrayscaleImageFolder('../data_validation', val_transforms)
+    val_imagefolder = GrayscaleImageFolder('../data/data_validation', val_transforms)
     val_loader = torch.utils.data.DataLoader(val_imagefolder, batch_size=batch_size, shuffle=False)
 
     if use_gpu:
@@ -233,5 +234,4 @@ def get_empirical_distribution(path_to_images="../data_sq", n_classes=105, cl=Tr
     return 0
 
 if __name__ == "__main__":
-    # get_empirical_distribution(path="../data_test", cl=False)
     main()
