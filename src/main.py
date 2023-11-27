@@ -19,12 +19,12 @@ def main():
 
     # Check if GPU is available
     use_gpu = torch.cuda.is_available()
-    # model = Cu_net()
-    model = U_net_small()
+    model = Cu_net()
+    # model = U_net_small()
     # model = Cu_net_small()
     n_classes = 105
     epochs = 64
-    batch_size = 4
+    batch_size = 2
     criterion = nn.CrossEntropyLoss()
     lr = 1.5e-2
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
