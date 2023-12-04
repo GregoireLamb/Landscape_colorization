@@ -25,15 +25,15 @@ def main():
     use_gpu = torch.cuda.is_available()
     model = Cu_net()
     n_classes = 105
-    epochs = 25
-    batch_size = 2
+    epochs = 30
+    batch_size = 20
     criterion = nn.CrossEntropyLoss()
     # criterion = nn.CrossEntropyLoss(weight=class_penalty)
     lr = 1.5e-2
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     save_images =True
     best_losses = 1e10
-    data_folder = "data_small" # data data_small
+    data_folder = "data" # data data_small
     T = 1 # temperature
 
     print("[LANDSCAPE COLORIZATION]\n")
