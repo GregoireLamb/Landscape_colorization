@@ -1,9 +1,8 @@
 import math
-from typing import Dict, Union, Any
-
-import scipy.stats
+from PIL import Image
+import matplotlib.pyplot as plt
+import os
 import torch
-from logging import warn, warning
 
 class2mapping = torch.tensor([
     25, 26, 27, 40, 41, 42, 51, 52, 53, 54,55, 56, 57, 64, 65, 66, 67, 68, 69, 70,71, 72, 79, 80, 81, 82, 83, 84,
@@ -81,24 +80,52 @@ def ab2class(ab, n_classes=100):
         return mapping2class[mapping]
     return (torch.floor(ab[:, 0, :, :] * 10) * 10 + torch.floor(ab[:, 1, :, :]*10)).clone().long()
 
-def prob2ab(te, n_classes=100, neighbooring_class=4, temperature=1, prob_max=True):
+def prob2ab(te, n_classes=100, neighbooring_class=4, temperature=1, strategy="prob_max"):
     """
     :param tensor: te: torch.Size([1, 100, 256, 256]): batch_size, Q, height, width (value = prob, [0,1]
     :return: ab: torch.Size([1, 2, 256, 256]): batch_size, ab, height, width (value = classes)
     """
-    if prob_max:
+    te = te.cuda()
+    batch_size, _, height, width = te.shape
+
+    if strategy == "prob_max":
         return class2ab(torch.argmax(te, dim=1), n_classes=n_classes)
-    # batch_size, _, height, width = te.shape
-    # # Sum along the Q dimension and divide by the sum of the input tensor along the Q dimension
-    # ab = torch.zeros(batch_size, 2, height, width, dtype=torch.float32).cuda()
-    # if n_classes == 105:
-    #     ab = class2ab(torch.argmax(te, dim=1), n_classes=n_classes)
-    #     # ab[:, 0, :, :] = torch.floor(torch.argmax(te, dim=1) / 15) / 15 + 1/30
-    #     # ab[:, 1, :, :] = torch.argmax(te, dim=1) % 15 / 15 + 1/30
-    # else:
-    #     ab[:, 0, :, :] = torch.argmax(te, dim=1) // 10 / 10 + 0.05
-    #     ab[:, 1, :, :] = torch.argmax(te, dim=1) % 10 / 10 + 0.05
-    # return ab
+    elif strategy == "prob_max_temperature":
+        raise  NotImplementedError
+    elif strategy == "rebalanced_mean_prob":
+        # Sum along the Q dimension and divide by the sum of the input tensor along the Q dimension
+        ab_mean = prob2ab(te, n_classes=n_classes, strategy="mean_prob").cuda()
+        ab_max = prob2ab(te, n_classes=n_classes, strategy="prob_max").cuda()*temperature
+        ab = (ab_mean+ab_max)/(1+temperature)
+        return ab
+    elif strategy == "mean_prob":
+        # Sum along the Q dimension and divide by the sum of the input tensor along the Q dimension
+        ab = torch.zeros(batch_size, 2, height, width, dtype=torch.float32).cuda()
+        ab_all_q = torch.zeros(batch_size, 225, height, width, dtype=torch.float32).cuda()
+        if n_classes == 105:
+
+            # from class [0-104] to class [0-224]
+            for i in range(105):
+                ab_all_q[:, class2mapping[i]] = te[:, i, :, :]
+
+            multiplication_factors_a1 = torch.tensor([(i) // 15 * 1 / 15 + 1 / 30 for i in range(225)]).cuda()
+            multiplication_factors_b1 = torch.tensor([(i) % 15 * 1 / 15 + 1 / 30 for i in range(225)]).cuda()
+            multiplication_factors_a = torch.zeros(batch_size, 225, height, width, dtype=torch.float32).cuda()
+            multiplication_factors_b = torch.zeros(batch_size, 225, height, width, dtype=torch.float32).cuda()
+
+            for q, factor_a1, factor_b1 in zip(range(len(multiplication_factors_a1)), multiplication_factors_a1,
+                                               multiplication_factors_b1):
+                multiplication_factors_a[:, q, :, :] = factor_a1
+                multiplication_factors_b[:, q, :, :] = factor_b1
+
+            # from class [0-224] to a/b
+            a_mult = ab_all_q * multiplication_factors_a
+            b_mult = ab_all_q * multiplication_factors_b
+            te = te.cuda()
+            ab[:, 0, :, :] = torch.sum(a_mult, dim=1) / torch.exp(torch.log(torch.sum(te, dim=1)/temperature))
+            ab[:, 1, :, :] = torch.sum(b_mult, dim=1) / torch.exp(torch.log(torch.sum(te, dim=1)/temperature))
+
+            return ab
 
 # def prob2ab(te, n_classes=100, neighbooring_class=4, temperature=0.38):
 #     """
@@ -165,3 +192,39 @@ def un_gaussian(dist, sig=0.1):
 
     return euclidean_distance
 
+def process_images(input_folder, output_folder):
+    # Create the output folder if it doesn't exist
+
+    # Loop through each file in the input folder
+    for folder in os.listdir(input_folder):# Test train and validation
+        if not os.path.exists(os.path.join(output_folder, folder)):
+            os.makedirs(os.path.join(output_folder, folder))
+        for cat_image in os.listdir(os.path.join(input_folder, folder)):# Coast Desert Forest Glacier Mountain
+            if not os.path.exists(os.path.join(output_folder, folder, cat_image)):
+                os.makedirs(os.path.join(output_folder, folder, cat_image))
+            for image in os.listdir(os.path.join(input_folder, folder, cat_image)):
+                img = Image.open(os.path.join(input_folder, folder, cat_image, image))
+
+                # Crop the image to a square
+                width, height = img.size
+                size = min(width, height)
+                left = (width - size) // 2
+                top = (height - size) // 2
+                right = (width + size) // 2
+                bottom = (height + size) // 2
+                img = img.crop((left, top, right, bottom))
+
+                # Resize the image to 256x256 pixels
+                img = img.resize((256, 256), Image.ANTIALIAS)
+
+                # Save the processed image to the output folder
+                output_path = os.path.join(output_folder, folder, cat_image, image)
+                img.save(output_path, quality=85)  # You can adjust the quality parameter as needed
+
+def plot_loss_evolution(losses, save_path):
+    plt.plot(losses)
+    plt.title("Loss evolution")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.savefig(save_path)
+    plt.close()

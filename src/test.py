@@ -113,7 +113,7 @@ class Test(TestCase):
     #
     def test_recolorize (self):
         test_transforms = transforms.Compose([])
-        test_imagefolder = GrayscaleImageFolder('../data_test', test_transforms)
+        test_imagefolder = GrayscaleImageFolder('../data_train/data_test', test_transforms)
         test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=True)
 
         os.makedirs('test_recolor/gray/', exist_ok=True)
@@ -126,13 +126,13 @@ class Test(TestCase):
             if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
 
             prob = ab2prob(input_ab, n_classes=105)
-            input_ab = prob2ab(prob, temperature=1, n_classes=105)
+            input_ab = prob2ab(prob, temperature=1, n_classes=105, strategy="mean_prob")
             for cl in torch.unique(input_ab):
                 predicted_colors.add(cl.item())
 
             for j in range(min(len(input_gray), 5)):  # save at most 5 images
                 save_path = {'grayscale': 'test_recolor/gray/', 'colorized': 'test_recolor/color/'}
-                save_name = "img105colors-{}.jpg".format(i)
+                save_name = "img105colors_avg-{}.jpg".format(i)
                 to_rgb(input_gray[j].cpu(), input_ab[j].detach().cpu(), save_path=save_path, save_name=save_name)
         print("len(predicted_colors)", len(predicted_colors))
         print(len(predicted_colors))
@@ -165,22 +165,22 @@ class Test(TestCase):
 
     def test_colorize_from_model (self):
         test_transforms = transforms.Compose([])
-        test_imagefolder = GrayscaleImageFolder('../data_test', test_transforms)
-        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=True)
+        test_imagefolder = GrayscaleImageFolder('../data/data_test', test_transforms)
+        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=2, shuffle=True)
 
-        os.makedirs('test_model/cu_medium_fulldataset_ep38/gray/', exist_ok=True)
-        os.makedirs('test_model/cu_medium_fulldataset_ep38/color/', exist_ok=True)
+        os.makedirs('test_model/cu_rebal_mean_prob_T05/gray/', exist_ok=True)
+        os.makedirs('test_model/cu_rebal_mean_prob_T05/color/', exist_ok=True)
 
         model = Cu_net()
-        model.load_state_dict(torch.load('../src/checkpoints/cu_medium_fulldataset_ep_38.pth'))
+        model.load_state_dict(torch.load('../src/checkpoints/cu_rebal-epoch-15-losses-3.736.pth'))
         model.eval()
 
         for i, (input_gray, input_ab, target) in enumerate(test_transforms):
 
-            output = prob2ab(model(input_gray), n_classes=105)
+            output = prob2ab(model(input_gray), n_classes=105, strategy="rebalanced_mean_prob", temperature=100)
 
             for j in range(len(input_gray)):  # save at most 5 images
-                save_path = {'grayscale': 'test_model/cu_medium_fulldataset_ep38/gray/', 'colorized': 'test_model/cu_medium_fulldataset_ep38/color/'}
+                save_path = {'grayscale': 'test_model/cu_rebal_mean_prob_T05/gray/', 'colorized': 'test_model/cu_rebal_mean_prob_T05/color/'}
                 save_name = "img-{}.jpg".format(i)
                 to_rgb(input_gray[j].cpu(), output[j].detach().cpu(), save_path=save_path, save_name=save_name)
 

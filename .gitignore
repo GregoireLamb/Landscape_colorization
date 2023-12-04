@@ -6,3 +6,6 @@
 /src/checkpoints*
 /src/__pycache__*
 launch.bat
+*.zip
+launch.bat
+/results/*

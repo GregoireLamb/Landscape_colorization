@@ -1,5 +1,6 @@
 import os
 import sys
+from logging import warning
 
 from alive_progress import alive_bar
 from skimage.color import xyz2rgb
@@ -17,16 +18,14 @@ import click
 def main():
     click.clear()
 
-    class_penalty = get_class_penalty(use_precompute=True)
+    class_penalty = 2*get_class_penalty(use_precompute=True)
+    validation_successive_loss = []
 
     # Check if GPU is available
     use_gpu = torch.cuda.is_available()
     model = Cu_net()
-    # model = Cu_net_medium()
-    # model = U_net_small()
-    # model = Cu_net_small()
     n_classes = 105
-    epochs = 20
+    epochs = 25
     batch_size = 16
     criterion = nn.CrossEntropyLoss(weight=class_penalty)
     lr = 1.5e-2
@@ -69,11 +68,15 @@ def main():
         train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes)
         with torch.no_grad():
             losses = validate(val_loader, model, criterion, save_images, epoch, temperature=T, n_classes=n_classes)
+            validation_successive_loss.append(losses)
+            print(f'Loss evolution: {validation_successive_loss}')
         # Save checkpoint and store best model if current model is better
         if losses < best_losses:
             best_losses = losses
             torch.save(model.state_dict(), 'checkpoints/model-epoch-{}-losses-{:.3f}.pth'.format(epoch + 1, losses))
 
+    print("Validation successive loss", validation_successive_loss)
+    plot_loss_evolution(validation_successive_loss, "../results/loss_evolution.png")
 
 def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None):
   '''Show/save rgb image from grayscale and ab channels
@@ -111,7 +114,7 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
 
             unflatten = torch.nn.Unflatten(2, (256, 256))# TODO adapt hard coded values
             output_prob = unflatten(output_prob)
-            output_ab = ab2class(prob2ab(output_prob, n_classes=n_classes, temperature=temperature))
+            output_ab = ab2class(prob2ab(output_prob, n_classes=n_classes, temperature=temperature, strategy="prob_max"))
             output_ab = class2ab(output_ab, n_classes=n_classes)
             # Save images to file
             if save_images and not already_saved_images:
@@ -265,4 +268,5 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
     return weights
 
 if __name__ == "__main__":
+    # process_images(input_folder, output_folder)
     main()
