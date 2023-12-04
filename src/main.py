@@ -18,7 +18,7 @@ import click
 def main():
     click.clear()
 
-    class_penalty = 2*get_class_penalty(use_precompute=True)
+    #class_penalty = get_class_penalty(use_precompute=True)
     validation_successive_loss = []
 
     # Check if GPU is available
@@ -26,16 +26,19 @@ def main():
     model = Cu_net()
     n_classes = 105
     epochs = 25
-    batch_size = 16
-    criterion = nn.CrossEntropyLoss(weight=class_penalty)
+    batch_size = 2
+    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss(weight=class_penalty)
     lr = 1.5e-2
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     save_images =True
     best_losses = 1e10
+    data_folder = "data_small" # data data_small
     T = 1 # temperature
 
     print("[LANDSCAPE COLORIZATION]\n")
     print("Parameters:")
+    print("\tModel: {}".format(model.name))
     print("\tModel: {}".format(model.name))
     print("\tn_classes: {}".format(n_classes))
     print("\tUsing GPU: {}".format(use_gpu))
@@ -45,11 +48,11 @@ def main():
     print("\tOptimizer: {}, learningrate: {}\n".format(optimizer.__class__.__name__, lr))
 
     train_transforms = transforms.Compose([])
-    train_imagefolder = GrayscaleImageFolder('../data/data_train', train_transforms)
+    train_imagefolder = GrayscaleImageFolder(f'../{data_folder}/data_train', train_transforms)
     train_loader = torch.utils.data.DataLoader(train_imagefolder, batch_size=batch_size, shuffle=True)
 
     val_transforms = transforms.Compose([])
-    val_imagefolder = GrayscaleImageFolder('../data/data_validation', val_transforms)
+    val_imagefolder = GrayscaleImageFolder(f'../{data_folder}/data_validation', val_transforms)
     val_loader = torch.utils.data.DataLoader(val_imagefolder, batch_size=batch_size, shuffle=False)
 
     if use_gpu:
@@ -73,12 +76,12 @@ def main():
         # Save checkpoint and store best model if current model is better
         if losses < best_losses:
             best_losses = losses
-            torch.save(model.state_dict(), 'checkpoints/model-epoch-{}-losses-{:.3f}.pth'.format(epoch + 1, losses))
+        torch.save(model.state_dict(), 'checkpoints/model-epoch-{}-losses-{:.3f}.pth'.format(epoch + 1, losses))
 
     print("Validation successive loss", validation_successive_loss)
     plot_loss_evolution(validation_successive_loss, "../results/loss_evolution.png")
 
-def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None):
+def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None, truth=False):
   '''Show/save rgb image from grayscale and ab channels
      Input save_path in the form {'grayscale': '/path/', 'colorized': '/path/'}'''
   plt.clf() # clear matplotlib
@@ -91,7 +94,7 @@ def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None):
   grayscale_input = grayscale_input.squeeze().numpy()
   if save_path is not None and save_name is not None:
     plt.imsave(arr=grayscale_input, fname='{}{}'.format(save_path['grayscale'], save_name), cmap='gray')
-    plt.imsave(arr=color_image, fname='{}{}'.format(save_path['colorized'], save_name))
+    plt.imsave(arr=color_image, fname='{}{}'.format(save_path['truth' if truth else 'colorized'], save_name))
 
 
 def validate(val_loader, model, criterion, save_images, epoch, temperature, use_gpu=True, n_classes=105):
@@ -186,27 +189,26 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
 
 def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=105):
     if use_precompute:
-        return torch.tensor([-0.0000e+00, -0.0000e+00, -0.0000e+00, -0.0000e+00, -7.0425e-08,
-        -2.2067e-07, -0.0000e+00, -0.0000e+00, -2.3006e-07, -2.8123e-06,
-        -2.0142e-06, -1.6433e-06, -1.3616e-07, -0.0000e+00, -0.0000e+00,
-        -4.2537e-06, -8.6769e-05, -8.2759e-05, -1.0078e-04, -1.4289e-04,
-        -5.0809e-05, -2.3006e-07, -0.0000e+00, -3.5133e-05, -8.6269e-04,
-        -8.5724e-04, -7.6422e-04, -2.1130e-03, -2.1044e-03, -4.4883e-04,
-        -1.6085e-05, -0.0000e+00, -9.5637e-05, -5.1462e-03, -1.7986e-02,
-        -1.9563e-02, -2.4205e-02, -2.1836e-02, -8.1501e-03, -1.9132e-03,
-        -2.2827e-04, -0.0000e+00, -7.5345e-03, -5.3160e-02, -1.5580e-01,
-        -4.0688e-01, -1.2185e-01, -3.4200e-02, -7.9415e-03, -2.0354e-03,
-        -1.5155e-04, -1.5139e-03, -9.9658e-03, -9.1145e-03, -6.4439e-03,
-        -1.1147e-02, -2.6324e-02, -1.9738e-02, -5.8914e-03, -9.0521e-04,
-        -1.6667e-05, -0.0000e+00, -1.4634e-04, -1.4114e-03, -8.1551e-04,
-        -3.8269e-04, -3.6614e-04, -5.9666e-04, -1.4385e-03, -2.7197e-03,
-        -1.8621e-03, -4.6091e-04, -0.0000e+00, -0.0000e+00, -0.0000e+00,
-        -3.6052e-04, -1.1585e-04, -1.8179e-05, -2.7330e-05, -3.8133e-05,
-        -1.3432e-04, -1.2057e-04, -3.4636e-04, -5.3801e-04, -0.0000e+00,
-        -1.0210e-04, -1.0411e-04, -1.8311e-07, -3.4743e-07, -1.5775e-06,
-        -1.4310e-05, -6.8383e-05, -9.8295e-05, -4.1870e-05, -1.2507e-04,
-        -0.0000e+00, -0.0000e+00, -1.8780e-08, -1.5494e-07, -3.1926e-07,
-        -2.3146e-06, -7.6059e-06, -5.7890e-06, -9.2022e-07, -1.1945e-04])
+        empirical_distribution = torch.tensor([0.0000e+00, 0.0000e+00, 0.0000e+00, 0.0000e+00, 7.0425e-08, 2.2067e-07,
+                    0.0000e+00, 0.0000e+00, 2.3006e-07, 2.8123e-06, 2.0142e-06, 1.6433e-06,
+                    1.3616e-07, 0.0000e+00, 0.0000e+00, 4.2537e-06, 8.6769e-05, 8.2759e-05,
+                    1.0078e-04, 1.4289e-04, 5.0809e-05, 2.3006e-07, 0.0000e+00, 3.5133e-05,
+                    8.6269e-04, 8.5724e-04, 7.6422e-04, 2.1130e-03, 2.1044e-03, 4.4883e-04,
+                    1.6085e-05, 0.0000e+00, 9.5637e-05, 5.1462e-03, 1.7986e-02, 1.9563e-02,
+                    2.4205e-02, 2.1836e-02, 8.1501e-03, 1.9132e-03, 2.2827e-04, 0.0000e+00,
+                    7.5345e-03, 5.3160e-02, 1.5580e-01, 4.0688e-01, 1.2185e-01, 3.4200e-02,
+                    7.9415e-03, 2.0354e-03, 1.5155e-04, 1.5139e-03, 9.9658e-03, 9.1145e-03,
+                    6.4439e-03, 1.1147e-02, 2.6324e-02, 1.9738e-02, 5.8914e-03, 9.0521e-04,
+                    1.6667e-05, 0.0000e+00, 1.4634e-04, 1.4114e-03, 8.1551e-04, 3.8269e-04,
+                    3.6614e-04, 5.9666e-04, 1.4385e-03, 2.7197e-03, 1.8621e-03, 4.6091e-04,
+                    0.0000e+00, 0.0000e+00, 0.0000e+00, 3.6052e-04, 1.1585e-04, 1.8179e-05,
+                    2.7330e-05, 3.8133e-05, 1.3432e-04, 1.2057e-04, 3.4636e-04, 5.3801e-04,
+                    0.0000e+00, 1.0210e-04, 1.0411e-04, 1.8311e-07, 3.4743e-07, 1.5775e-06,
+                    1.4310e-05, 6.8383e-05, 9.8295e-05, 4.1870e-05, 1.2507e-04, 0.0000e+00,
+                    0.0000e+00, 1.8780e-08, 1.5494e-07, 3.1926e-07, 2.3146e-06, 7.6059e-06,
+                    5.7890e-06, 9.2022e-07, 1.1945e-04]) # done on 1000 images
+        empirical_distribution = torch.where(empirical_distribution > 0, 1/empirical_distribution, torch.zeros_like(empirical_distribution))
+        return empirical_distribution
 
     imagefolder = GrayscaleImageFolder(path_to_images, transforms.Compose([]))
     loader = torch.utils.data.DataLoader(imagefolder, batch_size=32, shuffle=False)

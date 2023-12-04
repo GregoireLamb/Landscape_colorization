@@ -3,6 +3,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import os
 import torch
+from torchvision import transforms
 
 class2mapping = torch.tensor([
     25, 26, 27, 40, 41, 42, 51, 52, 53, 54,55, 56, 57, 64, 65, 66, 67, 68, 69, 70,71, 72, 79, 80, 81, 82, 83, 84,
@@ -156,6 +157,11 @@ def prob2ab(te, n_classes=100, neighbooring_class=4, temperature=1, strategy="pr
 #     ab[:, 1, :, :] = torch.sum(b_mult, dim=1) / (torch.sum(te, dim=1) * n_classes)
 #
 #     return ab
+def gaussian_tens(tens, sig = 0.1):
+    coefficient = 1 / (math.sqrt(2 * 3.1416) * sig)
+    exponent = -(tens ** 2) / (2 * sig ** 2)
+    return coefficient * torch.exp(exponent) / 2
+
 
 def gaussian(a,b, x, y, sig = 0.1):
     """
@@ -228,3 +234,48 @@ def plot_loss_evolution(losses, save_path):
     plt.ylabel("Loss")
     plt.savefig(save_path)
     plt.close()
+
+def compute_euclidean_distance_2_images(image1, image2):
+    """
+    Compute the euclidean distance between two images
+    :param image1: torch.Tensor
+    :param image2: torch.Tensor
+    :return: torch.Tensor
+    """
+    return torch.sum(torch.sqrt(torch.sum((image1 - image2) ** 2, dim=1))).item()
+
+def compute_PSNR_2_images(image1, image2):
+    return 10 * math.log(255*255/compute_euclidean_distance_2_images(image1, image2), 10)
+
+def compute_distances_metric(path_folder1, path_folder2, metric="euclidean"):
+    """
+    Compute the euclidean distance between two set of images
+    :param image1: torch.Tensor
+    :param image2: torch.Tensor
+    :return: torch.Tensor
+    """
+    distances = []
+    # load the images
+    for im_truth in os.listdir(path_folder1):
+        for im_pred in os.listdir(path_folder2):
+            # if im_truth has the same name as im_pred
+            if im_truth.split('.')[0] == im_pred.split('.')[0]:
+                im_truth = Image.open(os.path.join(path_folder1, im_truth))
+                im_pred = Image.open(os.path.join(path_folder2, im_pred))
+                if metric == "euclidean":
+                    distances.append(compute_euclidean_distance_2_images(transforms.ToTensor()(im_truth), transforms.ToTensor()(im_pred)))
+                    break
+                elif metric == "PSNR":
+                    distances.append(compute_PSNR_2_images(transforms.ToTensor()(im_truth), transforms.ToTensor()(im_pred)))
+                    break
+                else:
+                    print("WARNING: metric not implemented")
+            # Add message no image found
+    if len(os.listdir(path_folder1)) != len(os.listdir(path_folder2)) or len(os.listdir(path_folder1)) != len(distances):
+        print("WARNING: not the same number of images in both folders or image haven't the same names")
+        print("Folder1:", len(os.listdir(path_folder1)))
+        print("Folder2:", len(os.listdir(path_folder2)))
+        print("Common images:", len(distances))
+    return distances
+
+

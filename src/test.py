@@ -6,7 +6,7 @@ import torch
 
 from src.Cu_net_small import Cu_net_small
 from src.GrayscaleImageFolder import GrayscaleImageFolder
-from src.main import to_rgb
+from src.main import to_rgb, get_class_penalty
 from src.util import *
 
 import os
@@ -87,30 +87,7 @@ class Test(TestCase):
             image = image.detach()
             to_rgb(teL.cpu(), ab_input=image.detach().cpu(), save_path=save_path, save_name=save_name)
         return 0
-    #
-    # def test_all_classes (self):
-    #     os.makedirs('test_color/gray/', exist_ok=True)
-    #     os.makedirs('test_color/color/', exist_ok=True)
-    #
-    #     teL = torch.zeros(1, 256, 256, dtype=torch.float32)
-    #     classes = torch.zeros(1, 256, 256, dtype=torch.float32)
-    #     image = torch.zeros(2, 256, 256, dtype=torch.float32)
-    #     for i in range(0, 256):
-    #         for j in range(0, 256):
-    #             classes[0, i, j] = int(i/256 *100)
-    #             teL[0, i, j] = j/256
-    #
-    #     for i in range(0, 256):
-    #         for j in range(0, 256):
-    #             image[0, i, j], image[1, i, j] = class2ab(classes[0,i,j])
-    #
-    #     for j in range(min(len(image), 5)):
-    #         save_path = {'grayscale': 'test_color/gray/', 'colorized': 'test_color/color/'}
-    #         save_name = 'img2-{}-epoch-{}.jpg'.format(43,50)
-    #         image = image.detach()
-    #         to_rgb(teL.cpu(), ab_input=image.detach().cpu(), save_path=save_path, save_name=save_name)
-    #     return 0
-    #
+
     def test_recolorize (self):
         test_transforms = transforms.Compose([])
         test_imagefolder = GrayscaleImageFolder('../data_train/data_test', test_transforms)
@@ -166,10 +143,11 @@ class Test(TestCase):
     def test_colorize_from_model (self):
         test_transforms = transforms.Compose([])
         test_imagefolder = GrayscaleImageFolder('../data/data_test', test_transforms)
-        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=2, shuffle=True)
+        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=2, shuffle=False)
 
-        os.makedirs('test_model/cu_rebal_mean_prob_T05/gray/', exist_ok=True)
-        os.makedirs('test_model/cu_rebal_mean_prob_T05/color/', exist_ok=True)
+        os.makedirs('test_model/dist/gray/', exist_ok=True)
+        os.makedirs('test_model/dist/color/', exist_ok=True)
+        os.makedirs('test_model/dist/truth/', exist_ok=True)
 
         model = Cu_net()
         model.load_state_dict(torch.load('../src/checkpoints/cu_rebal-epoch-15-losses-3.736.pth'))
@@ -177,51 +155,25 @@ class Test(TestCase):
 
         for i, (input_gray, input_ab, target) in enumerate(test_transforms):
 
-            output = prob2ab(model(input_gray), n_classes=105, strategy="rebalanced_mean_prob", temperature=100)
+            penalty = get_class_penalty(use_precompute=True, n_classes=105)
+            penalty = penalty.view(1, 105, 1, 1)
+            pred = model(input_gray)#-(penalty/8e7) #TODO remove penalty this way
+            output = prob2ab(pred, n_classes=105, strategy="rebalanced_mean_prob", temperature=0.38)
 
             for j in range(len(input_gray)):  # save at most 5 images
-                save_path = {'grayscale': 'test_model/cu_rebal_mean_prob_T05/gray/', 'colorized': 'test_model/cu_rebal_mean_prob_T05/color/'}
+                save_path = {'grayscale': 'test_model/dist/gray/',
+                             'colorized': 'test_model/dist/color/',
+                             'truth': 'test_model/dist/truth/'}
                 save_name = "img-{}.jpg".format(i)
                 to_rgb(input_gray[j].cpu(), output[j].detach().cpu(), save_path=save_path, save_name=save_name)
+                to_rgb(input_gray[j].cpu(), input_ab[j].detach().cpu(), save_path=save_path, save_name=save_name, truth=True)
 
         return 0
-    #
-    # def test_gaussian(self):
-    #     sig = 0.2
-    #     # plot a function chart of the gaussian function
-    #     val = np.zeros(100)
-    #     for dist in range(0, 100):
-    #         coefficient = 1 / (math.sqrt(2 * math.pi) * sig)
-    #         exponent = -((dist/100*0.15)** 2) / (2 * sig ** 2)
-    #         print(f"{(dist/100*0.15)}")
-    #         val[dist] = coefficient * math.exp(exponent)/2
-    #
-    #     plt.plot(val)
-    #     #plot y axis from 0 to 1
-    #     # plt.ylim(0, 0.04)
-    #     plt.show()
-    #     return 0
-    #
-    #
-    # def test_ab2prob2(self): # seems ok
-    #     te = torch.tensor([[[[0.05, 0],
-    #                          [0, 0]],
-    #                          [[0.15, 0],
-    #                          [0, 0]]]], dtype=torch.float32).cuda()
-    #     print(te.shape)
-    #     prob = ab2prob(te)
-    #     print(prob.shape)
-    #     print(prob)
-    #
-    #     assert(prob[0, 0, 0, 0] == 0)
-    #     assert(prob[0, 0, 0, 1] == 1)
-    #     assert(prob[0, 1, 0, 0] == 1)
-    #     return 0
-    #
+
     def test_behaviour_bn(self):
         test_transforms = transforms.Compose([])
         test_imagefolder = GrayscaleImageFolder('../data_train_1', test_transforms)
-        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=True)
+        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=False)
 
         for i, (input_gray, input_ab, target) in enumerate(test_transforms):
             use_gpu = True
@@ -232,3 +184,27 @@ class Test(TestCase):
             print(target.shape)
             return 0
         return 0
+
+    def test_compute_euclidean_distance_2_same_images(self):
+        img = Image.open('./test_model/cu_rebal_mean_prob_T05/color/img-0.jpg')
+        img2 = Image.open('./test_model/cu_rebal_mean_prob_T05/gray/img-0.jpg')
+        img = transforms.ToTensor()(img)
+        img2 = transforms.ToTensor()(img2)
+
+        assert compute_euclidean_distance_2_images(img, img) == 0
+        assert compute_euclidean_distance_2_images(img, img2) != 0
+        return 0
+
+    def test_compute_euclidean_distance(self):
+        print("--- euclidean ")
+        dists = compute_distances_metric('./test_model/dist/color/', './test_model/dist/truth/', metric="euclidean")
+        print(np.mean(dists))
+        dists2 = compute_distances_metric('./test_model/dist/gray/', './test_model/dist/truth/', metric="euclidean")
+        print(np.mean(dists2))
+        print("--- PSNR ")
+        dists = compute_distances_metric('./test_model/dist/color/', './test_model/dist/truth/', metric="PSNR")
+        print(np.mean(dists))
+        dists2 = compute_distances_metric('./test_model/dist/gray/', './test_model/dist/truth/', metric="PSNR")
+        print(np.mean(dists2))
+        return 0
+
