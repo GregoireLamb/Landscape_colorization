@@ -143,14 +143,14 @@ class Test(TestCase):
     def test_colorize_from_model (self):
         test_transforms = transforms.Compose([])
         test_imagefolder = GrayscaleImageFolder('../data/data_test', test_transforms)
-        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=2, shuffle=False)
+        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=2, shuffle=True)
 
-        os.makedirs('test_model/dist/gray/', exist_ok=True)
-        os.makedirs('test_model/dist/color/', exist_ok=True)
-        os.makedirs('test_model/dist/truth/', exist_ok=True)
+        os.makedirs('test_model/penalty/gray/', exist_ok=True)
+        os.makedirs('test_model/penalty/color/', exist_ok=True)
+        os.makedirs('test_model/penalty/truth/', exist_ok=True)
 
         model = Cu_net()
-        model.load_state_dict(torch.load('../src/checkpoints/cu_rebal-epoch-15-losses-3.736.pth'))
+        model.load_state_dict(torch.load('../src/checkpoints/penalty_fixed_ep15_3.8836.pth'))
         model.eval()
 
         for i, (input_gray, input_ab, target) in enumerate(test_transforms):
@@ -158,32 +158,18 @@ class Test(TestCase):
             penalty = get_class_penalty(use_precompute=True, n_classes=105)
             penalty = penalty.view(1, 105, 1, 1)
             pred = model(input_gray)#-(penalty/8e7) #TODO remove penalty this way
-            output = prob2ab(pred, n_classes=105, strategy="rebalanced_mean_prob", temperature=0.38)
+            output = prob2ab(pred, n_classes=105, strategy="rebalanced_mean_prob", temperature=1)
 
             for j in range(len(input_gray)):  # save at most 5 images
-                save_path = {'grayscale': 'test_model/dist/gray/',
-                             'colorized': 'test_model/dist/color/',
-                             'truth': 'test_model/dist/truth/'}
+                save_path = {'grayscale': 'test_model/penalty/gray/',
+                             'colorized': 'test_model/penalty/color/',
+                             'truth': 'test_model/penalty/truth/'}
                 save_name = "img-{}.jpg".format(i)
                 to_rgb(input_gray[j].cpu(), output[j].detach().cpu(), save_path=save_path, save_name=save_name)
                 to_rgb(input_gray[j].cpu(), input_ab[j].detach().cpu(), save_path=save_path, save_name=save_name, truth=True)
 
         return 0
 
-    def test_behaviour_bn(self):
-        test_transforms = transforms.Compose([])
-        test_imagefolder = GrayscaleImageFolder('../data_train_1', test_transforms)
-        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=False)
-
-        for i, (input_gray, input_ab, target) in enumerate(test_transforms):
-            use_gpu = True
-            if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
-            print(input_gray.shape)
-            print(input_ab.shape)
-            print(input_ab)
-            print(target.shape)
-            return 0
-        return 0
 
     def test_compute_euclidean_distance_2_same_images(self):
         img = Image.open('./test_model/cu_rebal_mean_prob_T05/color/img-0.jpg')
@@ -208,3 +194,32 @@ class Test(TestCase):
         print(np.mean(dists2))
         return 0
 
+    def test_temprature(self):
+        temp = [0, 0.5, 1, 1.5, 2, 2.5, 3, 25]
+        test_transforms = transforms.Compose([])
+        test_imagefolder = GrayscaleImageFolder('../data/data_test', test_transforms)
+        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=False)
+
+        os.makedirs('test_model/temperature/gray/', exist_ok=True)
+        os.makedirs('test_model/temperature/color/', exist_ok=True)
+        os.makedirs('test_model/temperature/truth/', exist_ok=True)
+
+        model = Cu_net()
+        model.load_state_dict(torch.load('../src/checkpoints/penalty_fixed_ep15_3.8836.pth'))
+        model.eval()
+
+        for i, (input_gray, input_ab, target) in enumerate(test_transforms):
+            pred = model(input_gray)
+            for t in temp:
+                output = prob2ab(pred, n_classes=105, strategy="rebalanced_mean_prob", temperature=t)
+                save_path = {'grayscale': 'test_model/temperature/gray/',
+                             'colorized': 'test_model/temperature/color/',
+                             'truth': 'test_model/temperature/truth/'}
+                save_name = f"img-{i}_temp-{t}.jpg"
+                to_rgb(input_gray[0].cpu(), output[0].detach().cpu(), save_path=save_path, save_name=save_name)
+                to_rgb(input_gray[0].cpu(), input_ab[0].detach().cpu(), save_path=save_path, save_name=save_name,
+                       truth=True)
+            if i>10:
+                break
+
+        return 0
