@@ -4,3 +4,4 @@ numpy
 scikit-image
 torch
 torchvision
+PyYaml

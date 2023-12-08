@@ -12,39 +12,57 @@ from src.Cu_net import *
 from src.Cu_net_small import *
 from src.GrayscaleImageFolder import *
 from src.util import *
-import click
+from src.Config import *
 
 def main():
-    click.clear()
-
-    class_penalty = get_class_penalty(use_precompute=True) # High weight -> high penalty if color is missed
+    # Load config
+    config = Config('../config.yml')
+    save_path = config.save_path
+    use_precompute = config.use_precompute
+    class_penalty = get_class_penalty(use_precompute=use_precompute, lbda=config.lbda)  # High weight -> high penalty if color is missed
     validation_successive_loss = []
+    use_gpu = config.use_gpu
+    model = eval(config.model)()
+    n_classes = config.n_classes
+    epochs = config.epochs
+    batch_size = config.batch_size
+    if config.criterion == "CrossEntropyLoss":
+        criterion = nn.CrossEntropyLoss(weight=class_penalty)
+    else:
+        raise NotImplementedError("Criterion not implemented")
+    lr = config.lr
+    if config.optimizer == "Adam":
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    else:
+        raise NotImplementedError("Optimizer not implemented")
+    save_images = config.save_images
+    data_folder = config.data_folder
+    T = config.T
+    start_epoch = config.start_epoch
+    train_from_model = config.train_from_model
+    if train_from_model:
+        checkpoint_to_load = config.checkpoint_path+"/"+config.checkpoint_to_load
 
-    # Check if GPU is available
-    use_gpu = torch.cuda.is_available()
-    model = Cu_net()
-    n_classes = 105
-    epochs = 30
-    batch_size = 20
-    criterion = nn.CrossEntropyLoss(weight=class_penalty)
-    lr = 1.5e-2
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    save_images =True
-    best_losses = 1e10
-    data_folder = "data" # data data_small
-    T = 1 # temperature
-
+    # Print config
     print("[LANDSCAPE COLORIZATION]\n")
     print("Parameters:")
     print("\tModel: {}".format(model.name))
-    print("\tModel: {}".format(model.name))
+    print("\tdata_folder: {}".format(data_folder))
     print("\tn_classes: {}".format(n_classes))
     print("\tUsing GPU: {}".format(use_gpu))
     print("\tEpochs: {}".format(epochs))
+    print("\tStart_epoch: {}".format(start_epoch))
+    print("\ttrain_from_model: {}".format(train_from_model))
+    if train_from_model:
+        print("\tcheckpoint_to_load: {}".format(checkpoint_to_load))
     print("\tBatch size: {}".format(batch_size))
     print("\tCriterion: {}".format(criterion))
+    print("\tclass penalty, use_precompute: {}".format(use_precompute))
+    print("\tlambda for penalty: {}".format(config.lbda))
+    print("\tSave path: {}".format(save_path))
     print("\tOptimizer: {}, learningrate: {}\n".format(optimizer.__class__.__name__, lr))
 
+    # Load data
     train_transforms = transforms.Compose([])
     train_imagefolder = GrayscaleImageFolder(f'../{data_folder}/data_train', train_transforms)
     train_loader = torch.utils.data.DataLoader(train_imagefolder, batch_size=batch_size, shuffle=True)
@@ -56,6 +74,10 @@ def main():
     if use_gpu:
         criterion = criterion.cuda()
         model = model.cuda()
+        device = torch.device("cuda")
+
+    if train_from_model:
+        model, optimizer, start_epoch = load_checkpoint(model, optimizer, checkpoint_to_load, device=device)
 
     # Make folders and set parameters
     os.makedirs('outputs/color', exist_ok=True)
@@ -64,20 +86,20 @@ def main():
 
     # Train model
     print("Start training")
-    for epoch in range(epochs):
+    for epoch in range(start_epoch, epochs):
         # Train for one epoch, then validate
         train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes)
         with torch.no_grad():
             losses = validate(val_loader, model, criterion, save_images, epoch, temperature=T, n_classes=n_classes)
             validation_successive_loss.append(losses)
-            print(f'Loss evolution: {validation_successive_loss}')
-        # Save checkpoint and store best model if current model is better
-        if losses < best_losses:
-            best_losses = losses
-        torch.save(model.state_dict(), 'checkpoints/model-epoch-{}-losses-{:.3f}.pth'.format(epoch + 1, losses))
 
-    print("Validation successive loss", validation_successive_loss)
-    plot_loss_evolution(validation_successive_loss, "../results/loss_evolution.png")
+        state = {'epoch': epoch + 1, 'state_dict': model.state_dict(),
+                 'optimizer': optimizer.state_dict(), 'loss': validation_successive_loss}
+        torch.save(state, save_path+'/epoch-{}.pth'.format(epoch + 1))
+        with open("./outputs/loss.txt", "a") as f:
+            f.write("\n"+str(validation_successive_loss))
+
+    plot_loss_evolution(validation_successive_loss, "./outputs/loss_evolution.png")
 
 def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None, truth=False):
   '''Show/save rgb image from grayscale and ab channels
@@ -93,7 +115,6 @@ def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None, truth=Fals
   if save_path is not None and save_name is not None:
     plt.imsave(arr=grayscale_input, fname='{}{}'.format(save_path['grayscale'], save_name), cmap='gray')
     plt.imsave(arr=color_image, fname='{}{}'.format(save_path['truth' if truth else 'colorized'], save_name))
-
 
 def validate(val_loader, model, criterion, save_images, epoch, temperature, use_gpu=True, n_classes=105):
     model.eval()
@@ -132,10 +153,6 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
 
 def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_images = True, n_classes=105):
     model.train()
-
-    # print the current learning rate
-    for param_group in optimizer.param_groups:
-        print("Current learning rate is: {}".format(param_group['lr']))
 
     with alive_bar(total=len(train_loader), title="Train epoch: [{0}]".format(epoch), spinner='classic') as bar: #len(train_loader) = n_batches
         for i, (input_gray, input_ab, target) in enumerate(train_loader):
@@ -188,12 +205,10 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
     out *= xyz_ref_white
     return out
 
-
-def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=105):
+def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=105, lbda = 0.01):
     if use_precompute:
         empirical_distribution = torch.load("../class_count_full_train.pt")
         empirical_distribution = empirical_distribution/(256*256*10000)
-        lbda = 0.01
         empirical_distribution = 1/(empirical_distribution*(1-lbda)+lbda/n_classes)
 
         return empirical_distribution
@@ -263,6 +278,4 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
 
 if __name__ == "__main__":
     torch.manual_seed(1234)
-    # get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=105)
-    # process_images(input_folder, output_folder)
     main()
