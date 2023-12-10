@@ -160,26 +160,24 @@ def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save
 
     with alive_bar(total=len(train_loader), title="Train epoch: [{0}]".format(epoch), spinner='classic') as bar: #len(train_loader) = n_batches
         for i, (input_gray, input_ab, target) in enumerate(train_loader):
-            if i < im_to_restart_from:
-                bar()
-                continue
-            if use_gpu: input_gray, input_ab, target= input_gray.cuda(), input_ab.cuda(), target.cuda()
+            if i > im_to_restart_from:
+                if use_gpu: input_gray, input_ab, target= input_gray.cuda(), input_ab.cuda(), target.cuda()
 
-            output_ab_class = model(input_gray)
-            input_ab_class = ab2class(input_ab, n_classes=n_classes)
+                output_ab_class = model(input_gray)
+                input_ab_class = ab2class(input_ab, n_classes=n_classes)
 
-            if use_gpu: output_ab_class, input_ab_class, target = output_ab_class.cuda(), input_ab_class.cuda(), target.cuda()
+                if use_gpu: output_ab_class, input_ab_class, target = output_ab_class.cuda(), input_ab_class.cuda(), target.cuda()
 
-            # desire shape is batch, Q, x for output and batch, x for input
-            output_ab_class = torch.flatten(output_ab_class, start_dim=2)
-            input_ab_class = torch.flatten(input_ab_class, start_dim=1).long()
+                # desire shape is batch, Q, x for output and batch, x for input
+                output_ab_class = torch.flatten(output_ab_class, start_dim=2)
+                input_ab_class = torch.flatten(input_ab_class, start_dim=1).long()
 
-            loss = criterion(output_ab_class,input_ab_class)
+                loss = criterion(output_ab_class,input_ab_class)
 
-            # Compute gradient and optimize
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                # Compute gradient and optimize
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
             bar()
 
             if i%10000 == 0:
