@@ -282,6 +282,7 @@ def compute_distances_metric(path_folder1, path_folder2, metric="euclidean"):
 def load_checkpoint(model, optimizer, filename, device):
     # Note: Input model & optimizer should be pre-defined.  This routine only updates their states.
     start_epoch = 0
+    im_to_restart_from = -1
     if os.path.isfile(filename):
         ckpt = torch.load(filename, map_location = device)
         model.load_state_dict(ckpt['state_dict'])
@@ -292,11 +293,13 @@ def load_checkpoint(model, optimizer, filename, device):
         start_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
+        if 'i' in checkpoint.keys():
+            im_to_restart_from = checkpoint['i']
         print("Loaded checkpoint '{}' 100% \n".format(filename))
     else:
         print("No checkpoint found at '{}'".format(filename))
 
-    return model, optimizer, start_epoch
+    return model, optimizer, start_epoch, im_to_restart_from
 
 def data_splitter(path):
     """

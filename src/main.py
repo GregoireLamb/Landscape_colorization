@@ -77,7 +77,7 @@ def main():
         device = torch.device("cuda")
 
     if train_from_model:
-        model, optimizer, start_epoch = load_checkpoint(model, optimizer, checkpoint_to_load, device=device)
+        model, optimizer, start_epoch, im_to_restart_from = load_checkpoint(model, optimizer, checkpoint_to_load, device=device)
 
     # Make folders and set parameters
     os.makedirs('outputs/color', exist_ok=True)
@@ -88,7 +88,11 @@ def main():
     print("Start training")
     for epoch in range(start_epoch, epochs):
         # Train for one epoch, then validate
-        train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes)
+        if im_to_restart_from != -1:
+            train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes, im_to_restart_from=im_to_restart_from)
+            im_to_restart_from = -1
+        else:
+            train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes)
         with torch.no_grad():
             losses = validate(val_loader, model, criterion, save_images, epoch, temperature=T, n_classes=n_classes)
             validation_successive_loss.append(losses)
@@ -151,11 +155,14 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
     return losses
 
 
-def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_path = "/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=105):
+def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_path = "/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=105, im_to_restart_from=-1):
     model.train()
 
     with alive_bar(total=len(train_loader), title="Train epoch: [{0}]".format(epoch), spinner='classic') as bar: #len(train_loader) = n_batches
         for i, (input_gray, input_ab, target) in enumerate(train_loader):
+            if i < im_to_restart_from:
+                bar()
+                continue
             if use_gpu: input_gray, input_ab, target= input_gray.cuda(), input_ab.cuda(), target.cuda()
 
             output_ab_class = model(input_gray)
