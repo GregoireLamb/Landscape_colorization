@@ -64,11 +64,11 @@ def main():
 
     # Load data
     train_transforms = transforms.Compose([])
-    train_imagefolder = GrayscaleImageFolder(f'../{data_folder}/data_train', train_transforms)
+    train_imagefolder = GrayscaleImageFolder(f'{data_folder}/data_train', train_transforms)
     train_loader = torch.utils.data.DataLoader(train_imagefolder, batch_size=batch_size, shuffle=True)
 
     val_transforms = transforms.Compose([])
-    val_imagefolder = GrayscaleImageFolder(f'../{data_folder}/data_validation', val_transforms)
+    val_imagefolder = GrayscaleImageFolder(f'{data_folder}/data_validation', val_transforms)
     val_loader = torch.utils.data.DataLoader(val_imagefolder, batch_size=batch_size, shuffle=False)
 
     if use_gpu:
@@ -134,7 +134,7 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
             losses += loss.item()
             count += 1
 
-            unflatten = torch.nn.Unflatten(2, (256, 256))# TODO adapt hard coded values
+            unflatten = torch.nn.Unflatten(2, (256, 256))
             output_prob = unflatten(output_prob)
             output_ab = ab2class(prob2ab(output_prob, n_classes=n_classes, temperature=temperature, strategy="prob_max"))
             output_ab = class2ab(output_ab, n_classes=n_classes)
@@ -151,7 +151,7 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
     return losses
 
 
-def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_images = True, n_classes=105):
+def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_path = "/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=105):
     model.train()
 
     with alive_bar(total=len(train_loader), title="Train epoch: [{0}]".format(epoch), spinner='classic') as bar: #len(train_loader) = n_batches
@@ -174,6 +174,12 @@ def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save
             loss.backward()
             optimizer.step()
             bar()
+
+            if i%10000 == 0:
+                print("i", i)
+                state = {'epoch': epoch + 1, 'state_dict': model.state_dict(),
+                         'optimizer': optimizer.state_dict(), 'i': i}
+                torch.save(state, save_path + '/epoch-{}_img-{}.pth'.format(epoch + 1, i))
 
 
 def lab_to_rgb(lab, illuminant="D65", observer="2", *, channel_axis=-1):
@@ -279,3 +285,4 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
 if __name__ == "__main__":
     torch.manual_seed(1234)
     main()
+    # data_split_img_in_2("D:/data/data_train")

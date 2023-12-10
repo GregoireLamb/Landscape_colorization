@@ -150,7 +150,7 @@ class Test(TestCase):
         os.makedirs('test_model/penalty/truth/', exist_ok=True)
 
         model = Cu_net()
-        model.load_state_dict(torch.load('../src/checkpoints/penalty_fixed_ep15_3.8836.pth'))
+        model.load_state_dict(torch.load('../src/checkpoints/penalty-epoch-12-losses-4.080.pth'))
         model.eval()
 
         for i, (input_gray, input_ab, target) in enumerate(test_transforms):
@@ -158,7 +158,7 @@ class Test(TestCase):
             penalty = get_class_penalty(use_precompute=True, n_classes=105)
             penalty = penalty.view(1, 105, 1, 1)
             pred = model(input_gray)#-(penalty/8e7) #TODO remove penalty this way
-            output = prob2ab(pred, n_classes=105, strategy="rebalanced_mean_prob", temperature=1)
+            output = prob2ab(pred, n_classes=105, strategy="rebalanced_mean_prob", temperature=1.5)
 
             for j in range(len(input_gray)):  # save at most 5 images
                 save_path = {'grayscale': 'test_model/penalty/gray/',
@@ -194,28 +194,33 @@ class Test(TestCase):
         print(np.mean(dists2))
         return 0
 
-    def test_temprature(self):
+    def test_temperature(self):
+        torch.manual_seed(0)
         temp = [0, 0.5, 1, 1.5, 2, 2.5, 3, 25]
         test_transforms = transforms.Compose([])
         test_imagefolder = GrayscaleImageFolder('../data/data_test', test_transforms)
-        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=False)
+        test_transforms = torch.utils.data.DataLoader(test_imagefolder, batch_size=1, shuffle=True)
 
         os.makedirs('test_model/temperature/gray/', exist_ok=True)
         os.makedirs('test_model/temperature/color/', exist_ok=True)
         os.makedirs('test_model/temperature/truth/', exist_ok=True)
 
         model = Cu_net()
-        model.load_state_dict(torch.load('../src/checkpoints/penalty_fixed_ep15_3.8836.pth'))
+
+        ckpt = torch.load('../src/checkpoints/epoch-16.pth')
+        model.load_state_dict(ckpt['state_dict'])
         model.eval()
 
         for i, (input_gray, input_ab, target) in enumerate(test_transforms):
             pred = model(input_gray)
+            count_t = 0
             for t in temp:
                 output = prob2ab(pred, n_classes=105, strategy="rebalanced_mean_prob", temperature=t)
                 save_path = {'grayscale': 'test_model/temperature/gray/',
                              'colorized': 'test_model/temperature/color/',
                              'truth': 'test_model/temperature/truth/'}
-                save_name = f"img-{i}_temp-{t}.jpg"
+                save_name = f"img-{i}_{count_t}_temp-{t}.jpg"
+                count_t += 1
                 to_rgb(input_gray[0].cpu(), output[0].detach().cpu(), save_path=save_path, save_name=save_name)
                 to_rgb(input_gray[0].cpu(), input_ab[0].detach().cpu(), save_path=save_path, save_name=save_name,
                        truth=True)

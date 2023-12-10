@@ -298,3 +298,58 @@ def load_checkpoint(model, optimizer, filename, device):
 
     return model, optimizer, start_epoch
 
+def data_splitter(path):
+    """
+    :param path: path to the dataset
+    :return: train, test, validation
+    """
+    # set seed for reproducibility
+    torch.manual_seed(123)
+
+    train_path = path+'/data_train/images'
+    test_path = path+'/data_test/images'
+    validation_path = path+'/data_validation/images'
+
+    # create the folders
+    os.makedirs(validation_path, exist_ok=True)
+    os.makedirs(test_path, exist_ok=True)
+    os.makedirs(train_path, exist_ok=True)
+
+    # load the images and split in train, test, validation 75% 10% 15%
+    counter = 0
+    for image in os.listdir(path+"/data_train/images"):
+        if counter%1000 == 0:
+            print(counter/900, "%")
+        counter += 1
+        # generate a random number
+        rand = torch.rand(1).item()
+        if rand < 0.1:
+            # move the image to validation
+            os.rename(train_path+'/'+image, test_path+'/'+image)
+        elif rand < 0.25:
+            os.rename(train_path+'/'+image, validation_path+'/'+image)
+
+
+def data_split_img_in_2(path):
+    """
+    :param path: path to the dataset
+    :return: train, test, validation
+    """
+    images1 = path+'/images'
+    images2 = path+'/images2'
+
+    # create the folders
+    os.makedirs(images1, exist_ok=True)
+    os.makedirs(images2, exist_ok=True)
+
+    # load the images and split in train, test, validation 75% 10% 15%
+    counter = 0
+    for image in os.listdir(images1):
+        if counter%2 == 0:
+            os.rename(images1+'/'+image, images2+'/'+image)
+        if counter%1000 == 0:
+            print(counter)
+        counter += 1
+
+
+
