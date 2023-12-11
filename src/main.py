@@ -88,11 +88,9 @@ def main():
     print("Start training")
     for epoch in range(start_epoch, epochs):
         # Train for one epoch, then validate
-        if im_to_restart_from != -1:
-            train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes, im_to_restart_from=im_to_restart_from)
-            im_to_restart_from = -1
-        else:
-            train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes)
+        train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes, im_to_restart_from=im_to_restart_from)
+        im_to_restart_from = 0
+
         with torch.no_grad():
             losses = validate(val_loader, model, criterion, save_images, epoch, temperature=T, n_classes=n_classes)
             validation_successive_loss.append(losses)
@@ -155,36 +153,35 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
     return losses
 
 
-def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_path = "/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=105, im_to_restart_from=-1):
+def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_path = "/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=105, im_to_restart_from=0):
     model.train()
 
     with alive_bar(total=len(train_loader), title="Train epoch: [{0}]".format(epoch), spinner='classic') as bar: #len(train_loader) = n_batches
-        for i, (input_gray, input_ab, target) in enumerate(train_loader):
-            if i > im_to_restart_from:
-                if use_gpu: input_gray, input_ab, target= input_gray.cuda(), input_ab.cuda(), target.cuda()
+        for i, (input_gray, input_ab, target) in enumerate(train_loader, im_to_restart_from):
+            if use_gpu: input_gray, input_ab, target= input_gray.cuda(), input_ab.cuda(), target.cuda()
 
-                output_ab_class = model(input_gray)
-                input_ab_class = ab2class(input_ab, n_classes=n_classes)
+            output_ab_class = model(input_gray)
+            input_ab_class = ab2class(input_ab, n_classes=n_classes)
 
-                if use_gpu: output_ab_class, input_ab_class, target = output_ab_class.cuda(), input_ab_class.cuda(), target.cuda()
+            if use_gpu: output_ab_class, input_ab_class, target = output_ab_class.cuda(), input_ab_class.cuda(), target.cuda()
 
-                # desire shape is batch, Q, x for output and batch, x for input
-                output_ab_class = torch.flatten(output_ab_class, start_dim=2)
-                input_ab_class = torch.flatten(input_ab_class, start_dim=1).long()
+            # desire shape is batch, Q, x for output and batch, x for input
+            output_ab_class = torch.flatten(output_ab_class, start_dim=2)
+            input_ab_class = torch.flatten(input_ab_class, start_dim=1).long()
 
-                loss = criterion(output_ab_class,input_ab_class)
+            loss = criterion(output_ab_class,input_ab_class)
 
-                # Compute gradient and optimize
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+            # Compute gradient and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
             bar()
 
             if i%10000 == 0:
                 print("i", i)
-                state = {'epoch': epoch + 1, 'state_dict': model.state_dict(),
+                state = {'epoch': epoch, 'state_dict': model.state_dict(),
                          'optimizer': optimizer.state_dict(), 'i': i}
-                torch.save(state, save_path + '/epoch-{}_img-{}.pth'.format(epoch + 1, i))
+                torch.save(state, save_path + '/epoch-{}_img-{}.pth'.format(epoch, i))
 
 
 def lab_to_rgb(lab, illuminant="D65", observer="2", *, channel_axis=-1):
@@ -216,16 +213,16 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
     out *= xyz_ref_white
     return out
 
-def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=105, lbda = 0.01):
+def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=105, lbda = 0.5):
     if use_precompute:
-        empirical_distribution = torch.load("../class_count_full_train.pt")
+        empirical_distribution = torch.load("../class_count_30964.pt")
         empirical_distribution = empirical_distribution/(256*256*10000)
         empirical_distribution = 1/(empirical_distribution*(1-lbda)+lbda/n_classes)
 
         return empirical_distribution
 
     imagefolder = GrayscaleImageFolder(path_to_images, transforms.Compose([]))
-    loader = torch.utils.data.DataLoader(imagefolder, batch_size=100, shuffle=True)
+    loader = torch.utils.data.DataLoader(imagefolder, batch_size=128, shuffle=True)
 
     class_count = torch.zeros(n_classes).cuda()
 
@@ -233,7 +230,11 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
         inputab = inputab.cuda()
         target = ab2class(inputab, n_classes=n_classes).flatten()
         class_count += torch.bincount(target, minlength=n_classes)
+        if i%100 == 0:
+            print("i", i)
 
+    # Save class_count
+    torch.save(class_count, "../class_count_30964.pt")
     print("class_count", class_count)
     class_proba= class_count/sum(class_count)
     print("class_proba", class_proba)
@@ -289,5 +290,6 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
 
 if __name__ == "__main__":
     torch.manual_seed(1234)
-    main()
+    # main()
     # data_split_img_in_2("D:/data/data_train")
+    get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=105, lbda=0.5)
