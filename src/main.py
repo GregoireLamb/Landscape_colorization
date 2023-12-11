@@ -217,7 +217,7 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
 def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=105, lbda = 0.5):
     if use_precompute:
         empirical_distribution = torch.load("../class_count_30964.pt")
-        empirical_distribution = empirical_distribution/(256*256*80000)
+        empirical_distribution = empirical_distribution/(256*256*10000)
         empirical_distribution = 1/(empirical_distribution*(1-lbda)+lbda/n_classes)
 
         return empirical_distribution
