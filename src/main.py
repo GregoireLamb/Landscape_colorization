@@ -89,7 +89,7 @@ def main():
     print("Start training")
     for epoch in range(start_epoch, epochs):
         # Train for one epoch, then validate
-        train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes, im_to_restart_from=im_to_restart_from)
+        train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes, im_to_restart_from=im_to_restart_from, save_path=save_path)
         im_to_restart_from = 0
 
         with torch.no_grad():
@@ -178,7 +178,7 @@ def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save
             optimizer.step()
             bar()
 
-            if i%10000 == 0:
+            if i%450 == 0:
                 print("i", i)
                 state = {'epoch': epoch, 'state_dict': model.state_dict(),
                          'optimizer': optimizer.state_dict(), 'i': i}
@@ -291,6 +291,6 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
 
 if __name__ == "__main__":
     torch.manual_seed(1234)
-    # main()
+    main()
     # data_split_img_in_2("D:/data/data_train")
-    get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=105, lbda=0.5)
+    # get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=105, lbda=0.5)
