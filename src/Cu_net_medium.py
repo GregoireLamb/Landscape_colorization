@@ -1,20 +1,5 @@
-# For plotting
-import numpy as np
-import matplotlib.pyplot as plt
-# %matplotlib inline
-# For conversion
-from skimage.color import lab2rgb, rgb2lab, rgb2gray
-from skimage import io
-# For everything
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-# For our model
-import torchvision.models as models
-from torchvision import datasets, transforms
-# For utilities
-import os, shutil, time
-
 
 class Cu_net_medium(nn.Module):
   def __init__(self, n_class=128):
@@ -51,7 +36,6 @@ class Cu_net_medium(nn.Module):
                                  deconv2_2, nn.BatchNorm2d(self.n_class), nn.Sigmoid())
     self.deconv3 = nn.Sequential(deconv3_1, nn.BatchNorm2d(self.n_class), nn.Sigmoid(),
                                  deconv3_2, nn.BatchNorm2d(self.n_class), nn.Sigmoid())
-
 
 
   def forward(self, input):

@@ -1,6 +1,5 @@
 import numpy as np
-from skimage.color import lab2rgb, rgb2lab, rgb2gray
-import torch
+from skimage.color import rgb2lab, rgb2gray
 from torchvision import datasets
 from util import *
 
@@ -17,7 +16,6 @@ class GrayscaleImageFolder(datasets.ImageFolder):
           img_lab = (img_lab + 128) / 255 #nomarlise to [0,1]
           img_ab = img_lab[:, :, 1:3] # get ab channels
           img_ab = torch.from_numpy(img_ab.transpose((2, 0, 1))).float() # change to pytorch tensor, ab channel - height - width
-          # TODO change L
           img_original = rgb2gray(img_original)
           img_original = torch.from_numpy(img_original).unsqueeze(0).float()
       if self.target_transform is not None:

@@ -8,7 +8,6 @@ from skimage.color.colorconv import _prepare_colorarray, get_xyz_coords
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.Cu_net import *
 from src.Cu_net_small import *
 from src.GrayscaleImageFolder import *
 from src.util import *
@@ -153,7 +152,6 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
     print("Loss {loss:.4f}\t".format(loss=losses))
     return losses
 
-
 def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_path = "/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=105, im_to_restart_from=0):
     model.train()
 
@@ -183,7 +181,6 @@ def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save
                 state = {'epoch': epoch, 'state_dict': model.state_dict(),
                          'optimizer': optimizer.state_dict(), 'i': i}
                 torch.save(state, save_path + '/epoch-{}_img-{}.pth'.format(epoch, i))
-
 
 def lab_to_rgb(lab, illuminant="D65", observer="2", *, channel_axis=-1):
     return xyz2rgb(custom_lab2xyz(lab, illuminant, observer))
@@ -292,5 +289,4 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
 if __name__ == "__main__":
     torch.manual_seed(1234)
     main()
-    # data_split_img_in_2("D:/data/data_train")
     # get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=105, lbda=0.5)
