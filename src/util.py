@@ -178,6 +178,9 @@ def compute_distances_metric(path_folder1, path_folder2, metric="euclidean"):
                 elif metric == "PSNR":
                     distances.append(compute_PSNR_2_images(transforms.ToTensor()(im_truth), transforms.ToTensor()(im_pred)))
                     break
+                elif metric == "Accuracy":
+                    print("WARNING: metric not implemented")
+                    break
                 else:
                     print("WARNING: metric not implemented")
             # Add message no image found

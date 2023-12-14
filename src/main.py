@@ -9,6 +9,7 @@ from skimage.color.colorconv import _prepare_colorarray, get_xyz_coords
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.Cu_net_small import *
+from src.Cu_net import *
 from src.GrayscaleImageFolder import *
 from src.util import *
 from src.Config import *
@@ -118,7 +119,7 @@ def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None, truth=Fals
     plt.imsave(arr=grayscale_input, fname='{}{}'.format(save_path['grayscale'], save_name), cmap='gray')
     plt.imsave(arr=color_image, fname='{}{}'.format(save_path['truth' if truth else 'colorized'], save_name))
 
-def validate(val_loader, model, criterion, save_images, epoch, temperature, use_gpu=True, n_classes=105):
+def validate(val_loader, model, criterion, save_images, epoch, temperature, use_gpu=True, n_classes=104):
     model.eval()
     losses = 0
     count = 0
@@ -152,7 +153,7 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
     print("Loss {loss:.4f}\t".format(loss=losses))
     return losses
 
-def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_path = "/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=105, im_to_restart_from=0):
+def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_path = "/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=104, im_to_restart_from=0):
     model.train()
 
     with alive_bar(total=len(train_loader), title="Train epoch: [{0}]".format(epoch), spinner='classic') as bar: #len(train_loader) = n_batches
@@ -211,8 +212,8 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
     out *= xyz_ref_white
     return out
 
-def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=105, lbda = 0.5):
-    if use_precompute:
+def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=104, lbda = 0.5):
+    if use_precompute==104:
         empirical_distribution = torch.load("../class_count_30964.pt")
         empirical_distribution = empirical_distribution/(256*256*10000)
         empirical_distribution = 1/(empirical_distribution*(1-lbda)+lbda/n_classes)
@@ -289,4 +290,4 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
 if __name__ == "__main__":
     torch.manual_seed(1234)
     main()
-    # get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=105, lbda=0.5)
+    # get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=104, lbda=0.5)
