@@ -14,12 +14,14 @@ from src.GrayscaleImageFolder import *
 from src.util import *
 from src.Config import *
 
+
 def main():
     # Load config
     config = Config('../config.yml')
     save_path = config.save_path
     use_precompute = config.use_precompute
-    class_penalty = get_class_penalty(use_precompute=use_precompute, lbda=config.lbda)  # High weight -> high penalty if color is missed
+    class_penalty = get_class_penalty(use_precompute=use_precompute,
+                                      lbda=config.lbda)  # High weight -> high penalty if color is missed
     validation_successive_loss = []
     use_gpu = config.use_gpu
     model = eval(config.model)()
@@ -41,7 +43,7 @@ def main():
     start_epoch = config.start_epoch
     train_from_model = config.train_from_model
     if train_from_model:
-        checkpoint_to_load = config.checkpoint_path+"/"+config.checkpoint_to_load
+        checkpoint_to_load = config.checkpoint_path + "/" + config.checkpoint_to_load
 
     # Print config
     print("[LANDSCAPE COLORIZATION]\n")
@@ -78,7 +80,8 @@ def main():
         device = torch.device("cuda")
 
     if train_from_model:
-        model, optimizer, start_epoch, im_to_restart_from = load_checkpoint(model, optimizer, checkpoint_to_load, device=device)
+        model, optimizer, start_epoch, im_to_restart_from = load_checkpoint(model, optimizer, checkpoint_to_load,
+                                                                            device=device)
 
     # Make folders and set parameters
     os.makedirs('outputs/color', exist_ok=True)
@@ -89,7 +92,8 @@ def main():
     print("Start training")
     for epoch in range(start_epoch, epochs):
         # Train for one epoch, then validate
-        train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes, im_to_restart_from=im_to_restart_from, save_path=save_path)
+        train(train_loader, model, criterion, optimizer, epoch, n_classes=n_classes,
+              im_to_restart_from=im_to_restart_from, save_path=save_path)
         im_to_restart_from = 0
 
         with torch.no_grad():
@@ -98,26 +102,28 @@ def main():
 
         state = {'epoch': epoch + 1, 'state_dict': model.state_dict(),
                  'optimizer': optimizer.state_dict(), 'loss': validation_successive_loss}
-        torch.save(state, save_path+'/epoch-{}.pth'.format(epoch + 1))
+        torch.save(state, save_path + '/epoch-{}.pth'.format(epoch + 1))
         with open("./outputs/loss.txt", "a") as f:
-            f.write("\n"+str(validation_successive_loss))
+            f.write("\n" + str(validation_successive_loss))
 
     plot_loss_evolution(validation_successive_loss, "./outputs/loss_evolution.png")
 
-def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None, truth=False):
-  '''Show/save rgb image from grayscale and ab channels
-     Input save_path in the form {'grayscale': '/path/', 'colorized': '/path/'}'''
-  plt.clf() # clear matplotlib
-  color_image = torch.cat((grayscale_input, ab_input), 0).numpy() # combine channels
-  color_image = color_image.transpose((1, 2, 0))  # rescale for matplotlib
-  color_image[:, :, 0:1] = color_image[:, :, 0:1] * 100
-  color_image[:, :, 1:3] = color_image[:, :, 1:3] * 255 - 128
-  color_image = lab_to_rgb(color_image.astype(np.float64))
 
-  grayscale_input = grayscale_input.squeeze().numpy()
-  if save_path is not None and save_name is not None:
-    plt.imsave(arr=grayscale_input, fname='{}{}'.format(save_path['grayscale'], save_name), cmap='gray')
-    plt.imsave(arr=color_image, fname='{}{}'.format(save_path['truth' if truth else 'colorized'], save_name))
+def to_rgb(grayscale_input, ab_input, save_path=None, save_name=None, truth=False):
+    '''Show/save rgb image from grayscale and ab channels
+       Input save_path in the form {'grayscale': '/path/', 'colorized': '/path/'}'''
+    plt.clf()  # clear matplotlib
+    color_image = torch.cat((grayscale_input, ab_input), 0).numpy()  # combine channels
+    color_image = color_image.transpose((1, 2, 0))  # rescale for matplotlib
+    color_image[:, :, 0:1] = color_image[:, :, 0:1] * 100
+    color_image[:, :, 1:3] = color_image[:, :, 1:3] * 255 - 128
+    color_image = lab_to_rgb(color_image.astype(np.float64))
+
+    grayscale_input = grayscale_input.squeeze().numpy()
+    if save_path is not None and save_name is not None:
+        plt.imsave(arr=grayscale_input, fname='{}{}'.format(save_path['grayscale'], save_name), cmap='gray')
+        plt.imsave(arr=color_image, fname='{}{}'.format(save_path['truth' if truth else 'colorized'], save_name))
+
 
 def validate(val_loader, model, criterion, save_images, epoch, temperature, use_gpu=True, n_classes=104):
     model.eval()
@@ -130,7 +136,7 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
             if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
 
             # Run model and record loss
-            output_prob = model(input_gray) # -> batch*256*256*100
+            output_prob = model(input_gray)  # -> batch*256*256*100
             output_prob = torch.flatten(output_prob, start_dim=2).cuda()
             input_ab_class = torch.flatten(ab2class(input_ab, n_classes=n_classes), start_dim=1).long().cuda()
             loss = criterion(output_prob, input_ab_class)
@@ -139,26 +145,34 @@ def validate(val_loader, model, criterion, save_images, epoch, temperature, use_
 
             unflatten = torch.nn.Unflatten(2, (256, 256))
             output_prob = unflatten(output_prob)
-            output_ab = ab2class(prob2ab(output_prob, n_classes=n_classes, temperature=temperature, strategy="prob_max"))
+            output_ab = ab2class(
+                prob2ab(output_prob, n_classes=n_classes, temperature=temperature, strategy="prob_max"))
             output_ab = class2ab(output_ab, n_classes=n_classes)
             # Save images to file
             if save_images and not already_saved_images:
                 already_saved_images = True
-                for j in range(min(len(output_ab), 5)): # save at most 5 images
+                for j in range(min(len(output_ab), 5)):  # save at most 5 images
                     save_path = {'grayscale': 'outputs/gray/', 'colorized': 'outputs/color/'}
                     save_name = 'img-{}-epoch-{}.jpg'.format(i * val_loader.batch_size + j, epoch)
-                    to_rgb(input_gray[j].cpu(), ab_input=output_ab[j].detach().cpu(), save_path=save_path, save_name=save_name)
+                    to_rgb(input_gray[j].cpu(), ab_input=output_ab[j].detach().cpu(), save_path=save_path,
+                           save_name=save_name)
             bar()
-    losses = float(losses)/count
+    losses = float(losses) / count
     print("Loss {loss:.4f}\t".format(loss=losses))
     return losses
 
-def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save_path = "/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=104, im_to_restart_from=0):
+
+def train(train_loader, model, criterion, optimizer, epoch, use_gpu=True,
+          save_path="/content/gdrive/MyDrive/ADL/checkpoints/", n_classes=104, im_to_restart_from=0):
     model.train()
 
-    with alive_bar(total=len(train_loader), title="Train epoch: [{0}]".format(epoch), spinner='classic') as bar: #len(train_loader) = n_batches
+    with alive_bar(total=len(train_loader), title="Train epoch: [{0}]".format(epoch),
+                   spinner='classic') as bar:  # len(train_loader) = n_batches
         for i, (input_gray, input_ab, target) in enumerate(train_loader, im_to_restart_from):
-            if use_gpu: input_gray, input_ab, target= input_gray.cuda(), input_ab.cuda(), target.cuda()
+            if i % 50 == 0:
+                print("images:", i * 24)
+
+            if use_gpu: input_gray, input_ab, target = input_gray.cuda(), input_ab.cuda(), target.cuda()
 
             output_ab_class = model(input_gray)
             input_ab_class = ab2class(input_ab, n_classes=n_classes)
@@ -169,7 +183,7 @@ def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save
             output_ab_class = torch.flatten(output_ab_class, start_dim=2)
             input_ab_class = torch.flatten(input_ab_class, start_dim=1).long()
 
-            loss = criterion(output_ab_class,input_ab_class)
+            loss = criterion(output_ab_class, input_ab_class)
 
             # Compute gradient and optimize
             optimizer.zero_grad()
@@ -177,14 +191,16 @@ def train(train_loader, model, criterion, optimizer, epoch, use_gpu = True, save
             optimizer.step()
             bar()
 
-            if i%450 == 0:
+            if i % 450 == 0:
                 print("i", i)
                 state = {'epoch': epoch, 'state_dict': model.state_dict(),
                          'optimizer': optimizer.state_dict(), 'i': i}
                 torch.save(state, save_path + '/epoch-{}_img-{}.pth'.format(epoch, i))
 
+
 def lab_to_rgb(lab, illuminant="D65", observer="2", *, channel_axis=-1):
     return xyz2rgb(custom_lab2xyz(lab, illuminant, observer))
+
 
 def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
     arr = _prepare_colorarray(lab, channel_axis=-1).copy()
@@ -212,11 +228,13 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
     out *= xyz_ref_white
     return out
 
-def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=104, lbda = 0.5):
-    if use_precompute==104:
+
+def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=104, lbda=0.5):
+    if use_precompute:
         empirical_distribution = torch.load("../class_count_30964.pt")
-        empirical_distribution = empirical_distribution/(256*256*10000)
-        empirical_distribution = 1/(empirical_distribution*(1-lbda)+lbda/n_classes)
+        empirical_distribution = empirical_distribution / (256 * 256 * 10000)
+        empirical_distribution = empirical_distribution / 3 + torch.mean(empirical_distribution)
+        empirical_distribution = 1 / (empirical_distribution * (1 - lbda) + lbda / n_classes)
 
         return empirical_distribution
 
@@ -229,39 +247,38 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
         inputab = inputab.cuda()
         target = ab2class(inputab, n_classes=n_classes).flatten()
         class_count += torch.bincount(target, minlength=n_classes)
-        if i%100 == 0:
+        if i % 100 == 0:
             print("i", i)
 
     # Save class_count
     torch.save(class_count, "../class_count_30964.pt")
     print("class_count", class_count)
-    class_proba= class_count/sum(class_count)
+    class_proba = class_count / sum(class_count)
     print("class_proba", class_proba)
     print("sum", sum(class_proba))
     weights = class_proba * -1
     print("weights", weights)
 
-
     class2mapping = {
-            0: 25, 1: 26, 2: 27, 3: 40, 4: 41, 5: 42, 6: 51, 7: 52, 8: 53, 9: 54,
-            10: 55, 11: 56, 12: 57, 13: 64, 14: 65, 15: 66, 16: 67, 17: 68, 18: 69,
-            19: 70, 20: 71, 21: 72, 22: 79, 23: 80, 24: 81, 25: 82, 26: 83, 27: 84,
-            28: 85, 29: 86, 30: 87, 31: 93, 32: 94, 33: 95, 34: 96, 35: 97, 36: 98,
-            37: 99, 38: 100, 39: 101, 40: 102, 41: 108, 42: 109, 43: 110, 44: 111,
-            45: 112, 46: 113, 47: 114, 48: 115, 49: 116, 50: 117, 51: 123, 52: 124,
-            53: 125, 54: 126, 55: 127, 56: 128, 57: 129, 58: 130, 59: 131, 60: 132,
-            61: 136, 62: 137, 63: 138, 64: 139, 65: 140, 66: 141, 67: 142, 68: 143,
-            69: 144, 70: 145, 71: 146, 72: 147, 73: 150, 74: 151, 75: 152, 76: 153,
-            77: 154, 78: 155, 79: 156, 80: 157, 81: 158, 82: 159, 83: 160, 84: 165,
-            85: 166, 86: 167, 87: 168, 88: 169, 89: 170, 90: 171, 91: 172, 92: 173,
-            93: 174, 94: 175, 95: 180, 96: 182, 97: 183, 98: 184, 99: 185, 100: 186,
-            101: 187, 102: 188, 103: 189, 104: 190
-        }
+        0: 25, 1: 26, 2: 27, 3: 40, 4: 41, 5: 42, 6: 51, 7: 52, 8: 53, 9: 54,
+        10: 55, 11: 56, 12: 57, 13: 64, 14: 65, 15: 66, 16: 67, 17: 68, 18: 69,
+        19: 70, 20: 71, 21: 72, 22: 79, 23: 80, 24: 81, 25: 82, 26: 83, 27: 84,
+        28: 85, 29: 86, 30: 87, 31: 93, 32: 94, 33: 95, 34: 96, 35: 97, 36: 98,
+        37: 99, 38: 100, 39: 101, 40: 102, 41: 108, 42: 109, 43: 110, 44: 111,
+        45: 112, 46: 113, 47: 114, 48: 115, 49: 116, 50: 117, 51: 123, 52: 124,
+        53: 125, 54: 126, 55: 127, 56: 128, 57: 129, 58: 130, 59: 131, 60: 132,
+        61: 136, 62: 137, 63: 138, 64: 139, 65: 140, 66: 141, 67: 142, 68: 143,
+        69: 144, 70: 145, 71: 146, 72: 147, 73: 150, 74: 151, 75: 152, 76: 153,
+        77: 154, 78: 155, 79: 156, 80: 157, 81: 158, 82: 159, 83: 160, 84: 165,
+        85: 166, 86: 167, 87: 168, 88: 169, 89: 170, 90: 171, 91: 172, 92: 173,
+        93: 174, 94: 175, 95: 180, 96: 182, 97: 183, 98: 184, 99: 185, 100: 186,
+        101: 187, 102: 188, 103: 189, 104: 190
+    }
 
     class_count2 = torch.zeros(225)
     for i, count in enumerate(class_count):
         class_count2[class2mapping.get(i)] = count
-        if i==105:
+        if i == 105:
             class_count2[class2mapping.get(i)] = 0
             print("Amount of error =", count)
     class_distrib = class_count2.view(15, 15)  # Assuming 15x15 grid, adjust accordingly
@@ -270,7 +287,6 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
     plt.colorbar()
     plt.title("Empirical distribution of classes in training data")
     plt.show()
-
 
     class_distrib = torch.log(class_distrib)
     plt.imshow(class_distrib.numpy())
@@ -287,7 +303,18 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
 
     return weights
 
+
 if __name__ == "__main__":
     torch.manual_seed(1234)
     main()
     # get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=104, lbda=0.5)
+    # get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=104, lbda=0.5)
+    # start timer
+    # import time
+    # start = time.time()
+    # dists = compute_distances_metric('D:/data/data_test/images/','D:/predictions_Zang/e16/',
+    #                                  metric="euclidean")
+    # print("euclidean Zang = ", np.mean(dists))
+    # print("std Zang = ", np.std(dists))
+    # print("enlapse_time = ", time.time() - start)
+

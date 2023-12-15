@@ -5,6 +5,7 @@ import os
 import torch
 from torchvision import transforms
 
+
 class2mapping = torch.tensor([
     25, 26, 27, 40, 41, 42, 51, 52, 53, 54,55, 56, 57, 64, 65, 66, 67, 68, 69, 70,71, 72, 79, 80, 81, 82, 83, 84,
     85, 86,87, 93, 94, 95, 96, 97, 98, 99, 100, 101,102, 108, 109, 110, 111, 112, 113, 114, 115, 116,
@@ -172,6 +173,9 @@ def compute_distances_metric(path_folder1, path_folder2, metric="euclidean"):
             if im_truth.split('.')[0] == im_pred.split('.')[0]:
                 im_truth = Image.open(os.path.join(path_folder1, im_truth))
                 im_pred = Image.open(os.path.join(path_folder2, im_pred))
+                #make sur the have 3 dimensions, remove the 4th one
+                im_truth = im_truth.convert('RGB')
+                im_pred = im_pred.convert('RGB')
                 if metric == "euclidean":
                     distances.append(compute_euclidean_distance_2_images(transforms.ToTensor()(im_truth), transforms.ToTensor()(im_pred)))
                     break
