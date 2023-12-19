@@ -46,13 +46,20 @@ We would prefer a model that colorize with coherent color over a model that woul
 | <img src="illustration/red_car.jpeg" alt="Red Car" width="200"/> | <img src="illustration/blue_car.jpeg" alt="Blue Car" width="200"/> | <img src="illustration/mixed_car.png" alt="Mixed Car" width="200"/> |
 |------------------------------------------------------------------|--------------------------------------------------------------------|---------------------------------------------------------------------|
 | Truth Image                                                      | Coherent Colorization                                              | Uncoherent Colorization                                             |
+
+
 _credit image https://cc.porsche.com/_
 
 
 To evaluate our prediction we will therefore use the 2 same metrics as Wang, N. et al [[2]](#references) and a user evaluation:
 
 + **Euclidean distance** : The euclidean distance is the average distance between the predicted color and the real color.
+   <img src="illustration/euclidean.png" alt="Red Car" width="500"/>
+    For a 256x256 pxl image
+
 + **PSNR** : The PSNR is the peak signal-to-noise ratio. It is a measure used to compare the quality of an image with the original image.
+  <img src="illustration/PSNR.png" alt="Red Car" width="200"/>
+    
 
 The objective is to beat Zhang et al [[1]](#references) model on a testing dataset containing landscapes images regarding these metrics.
 
@@ -92,29 +99,29 @@ The test set correspond of 3000 images from the LHQ dataset.:
     <td>Zhang et al</td>
     <td>799.74</td>
     <td>363.77</td>
-    <td>19.48</td>
-    <td>1.79</td>
+    <td>-9.16</td>
+    <td>3.58</td>
   </tr>
   <tr>
     <td>model_1</td>
     <td>970.18</td>
     <td>428.14</td>
-    <td>18.58</td>
-    <td>1.58</td>
+    <td>-10.97</td>
+    <td>3.15</td>
   </tr>
   <tr>
     <td>model_2</td>
     <td>1258.47</td>
     <td>377.63</td>
-    <td>17.31</td>
-    <td>1.22</td>
+    <td>-13.51</td>
+    <td>2.45</td>
   </tr>
   <tr>
     <td>model_3</td>
     <td>1032.374</td>
     <td>375.67</td>
-    <td>18.24</td>
-    <td>1.44</td>
+    <td>-11.64</td>
+    <td>2.88</td>
   </tr>
 </table>
 
@@ -235,7 +242,7 @@ Where _p_ is the empirical distribution and _q_ is a color and _Q_ the total amo
 The parameter lambda controls the influence of the empirical distribution on the final weight.
 
 <div style="text-align: center;">
-    <img src="illustration/lambda.PNG" alt="lambda influence"/>
+    <img src="illustration/lambda.png" alt="lambda influence"/>
     <p>Lambda influence on the final weight (log scale)</p>
 </div>
 

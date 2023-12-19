@@ -156,7 +156,7 @@ def compute_euclidean_distance_2_images(image1, image2):
     return torch.sum(torch.sqrt(torch.sum((image1 - image2) ** 2, dim=1))).item()
 
 def compute_PSNR_2_images(image1, image2):
-    return 10 * math.log(255*255/compute_euclidean_distance_2_images(image1, image2), 10)
+    return 10 * math.log(255*255/(compute_euclidean_distance_2_images(image1, image2)*compute_euclidean_distance_2_images(image1, image2)), 10)
 
 def compute_distances_metric(path_folder1, path_folder2, metric="euclidean"):
     """
@@ -181,9 +181,6 @@ def compute_distances_metric(path_folder1, path_folder2, metric="euclidean"):
                     break
                 elif metric == "PSNR":
                     distances.append(compute_PSNR_2_images(transforms.ToTensor()(im_truth), transforms.ToTensor()(im_pred)))
-                    break
-                elif metric == "Accuracy":
-                    print("WARNING: metric not implemented")
                     break
                 else:
                     print("WARNING: metric not implemented")
