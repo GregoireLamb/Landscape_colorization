@@ -8,7 +8,6 @@ from skimage.color.colorconv import _prepare_colorarray, get_xyz_coords
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.Cu_net_small import *
 from src.Cu_net import *
 from src.GrayscaleImageFolder import *
 from src.util import *
@@ -231,9 +230,8 @@ def custom_lab2xyz(lab, illuminant="D65", observer="2", *, channel_axis=-1):
 
 def get_class_penalty(use_precompute=False, path_to_images="../data/data_train", n_classes=104, lbda=0.5):
     if use_precompute:
-        empirical_distribution = torch.load("../class_count_30964.pt")
+        empirical_distribution = torch.load("../class_count_dataset_3.pt")
         empirical_distribution = empirical_distribution / (256 * 256 * 10000)
-        empirical_distribution = empirical_distribution / 3 + torch.mean(empirical_distribution)
         empirical_distribution = 1 / (empirical_distribution * (1 - lbda) + lbda / n_classes)
 
         return empirical_distribution
@@ -251,7 +249,7 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
             print("i", i)
 
     # Save class_count
-    torch.save(class_count, "../class_count_30964.pt")
+    torch.save(class_count, "../class_count_dataset_3.pt")
     print("class_count", class_count)
     class_proba = class_count / sum(class_count)
     print("class_proba", class_proba)
@@ -307,14 +305,3 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
 if __name__ == "__main__":
     torch.manual_seed(1234)
     main()
-    # get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=104, lbda=0.5)
-    # get_class_penalty(use_precompute=False, path_to_images="D:/data/data_train/", n_classes=104, lbda=0.5)
-    # start timer
-    # import time
-    # start = time.time()
-    # dists = compute_distances_metric('D:/data/data_test/images/','D:/predictions_Zang/e16/',
-    #                                  metric="euclidean")
-    # print("euclidean Zang = ", np.mean(dists))
-    # print("std Zang = ", np.std(dists))
-    # print("enlapse_time = ", time.time() - start)
-

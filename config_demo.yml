@@ -1,0 +1,17 @@
+use_precompute: True
+use_gpu: True
+model: Cu_net
+n_classes: 104
+epochs: 30
+batch_size: 24
+criterion: "CrossEntropyLoss"
+lr: 1.5e-3
+optimizer: "Adam"
+save_images: True
+data_folder: "./data" # data data_small
+start_epoch: 0
+train_from_model: True
+checkpoint_path: "./checkpoints"
+checkpoint_to_load: "epoch-5.pth"
+lbda: 0.5
+save_path: "./checkpoints"

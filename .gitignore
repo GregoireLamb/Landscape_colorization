@@ -5,6 +5,8 @@
 /src/test_*
 /src/checkpoints*
 /src/__pycache__*
+/trained_model/*
+/models/*
 launch.bat
 *.zip
 launch.bat
