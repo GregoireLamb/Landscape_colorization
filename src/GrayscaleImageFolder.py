@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.color import rgb2lab, rgb2gray
 from torchvision import datasets
-from util import *
+import torch
 
 class GrayscaleImageFolder(datasets.ImageFolder):
   '''Custom images folder, which converts images to grayscale before loading'''
