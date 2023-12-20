@@ -58,8 +58,8 @@ class Test(TestCase):
         return 0
 
     def test_compute_euclidean_distance_2_same_images(self):
-        img = Image.open('../test_data/truth/test (1).png')
-        img2 = Image.open('../test_data/truth/test (2).png')
+        img = Image.open('../test_data/truth/test  (1).jpg')
+        img2 = Image.open('../test_data/truth/test  (2).jpg')
         img = transforms.ToTensor()(img)
         img2 = transforms.ToTensor()(img2)
 
@@ -147,7 +147,6 @@ class Test(TestCase):
                     save_name = f'img_{n_c}_colors_{i}.jpg'
                     to_rgb(input_gray[j].cpu(), input_ab[j].detach().cpu(), save_path=save_path, save_name=save_name)
             print("Used ", len(predicted_colors), " different colors among ", n_c, " classes")
-
         return 0
 
     """

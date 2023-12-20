@@ -8,7 +8,7 @@ This project is developed in the context of the lecture "194.077 Applied Deep Le
 _This project aims to use convolutional neural network to colorize landscape images._ 
 
 To run the test, download model_1.pth from the release "final model for Assignment 2 ADL" and place it in the folder "models".
-Use python version 3.7.2 (cuda 10.1 and cudnn 7.6.5)
+Use python version 3.7.2 (cuda 10.1 and cudnn 7.6.5) running test requires unittest. 
 
 
 ## Table of contents
