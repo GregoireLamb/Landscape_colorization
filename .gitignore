@@ -9,6 +9,5 @@
 /models/*
 launch.bat
 *.zip
-launch.bat
 /results/*
 config.yml

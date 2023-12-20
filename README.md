@@ -7,11 +7,15 @@ This project is developed in the context of the lecture "194.077 Applied Deep Le
 
 _This project aims to use convolutional neural network to colorize landscape images._ 
 
+To run the test, download model_1.pth from the release "final model for Assignment 2 ADL" and place it in the folder "models".
+Use python version 3.7.2 (cuda 10.1 and cudnn 7.6.5)
+
+
 ## Table of contents
 
 + [Introduction](#Introduction)
-+ [Evaluation](#evaluation)
 + [Dataset](#dataset)
++ [Evaluation](#evaluation)
 + [Results](#results)
 + [Work-breakdown structure](#work-breakdown-structure)
 + [Realisation](#realisation)
@@ -38,6 +42,16 @@ improved the neuron network architecture and used different activation functions
 focused on faces colorization what inspired this project with the idea of using deep learning to 
 train a colorization cnn specialized in landscapes. 
 
+## Dataset 
+
+During the course of this project, 3 datasets were considered:
+
+1. 'Landscape Pictures from Rougetet Arnaud' dataset, available on Kaggle [here](https://www.kaggle.com/datasets/arnaud58/landscape-pictures). This comprehensive dataset comprises 7 folders, totaling 4300 landscape pictures. These folders encompass various landscapes such as general scenery, mountains, deserts, seas, beaches, islands, and specific scenes from Japan.
+2. 'Landscape Recognition | Image Dataset | 12k Images', available on Kaggle [here](https://www.kaggle.com/datasets/utkarshsaxenadn/landscape-recognition-image-dataset-12k-images'). This dataset comprises 12,000 landscape pictures, divided into 5 categories: Coast, Desert, Forests, Glaciers and Mountains.
+3. 'LHQ dataset', available on Yandex Disk [here](https://disk.yandex.ru/d/HPEEntpLv8homg). This dataset comprises 90'000 images of (mostly) landscapes. I used the preprocessed set _LHQ1024 resized to 256x256 with Lanczos interpolation_.
+
+The preprocessing and image split will be described in the final report.
+
 ## Evaluation
 
 As discussed in Zhang et al paper [[1]](#references) there is no perfect metric for our task this is mostly due to the different colors an object or anything can take. 
@@ -62,16 +76,6 @@ To evaluate our prediction we will therefore use the 2 same metrics as Wang, N. 
     
 
 The objective is to beat Zhang et al [[1]](#references) model on a testing dataset containing landscapes images regarding these metrics.
-
-## Dataset 
-
-During the course of this project, 3 datasets were considered:
-
-1. 'Landscape Pictures from Rougetet Arnaud' dataset, available on Kaggle [here](https://www.kaggle.com/datasets/arnaud58/landscape-pictures). This comprehensive dataset comprises 7 folders, totaling 4300 landscape pictures. These folders encompass various landscapes such as general scenery, mountains, deserts, seas, beaches, islands, and specific scenes from Japan.
-2. 'Landscape Recognition | Image Dataset | 12k Images', available on Kaggle [here](https://www.kaggle.com/datasets/utkarshsaxenadn/landscape-recognition-image-dataset-12k-images'). This dataset comprises 12,000 landscape pictures, divided into 5 categories: Coast, Desert, Forests, Glaciers and Mountains.
-3. 'LHQ dataset', available on Yandex Disk [here](https://disk.yandex.ru/d/HPEEntpLv8homg). This dataset comprises 90'000 images of (mostly) landscapes. I used the preprocessed set _LHQ1024 resized to 256x256 with Lanczos interpolation_.
-
-The preprocessing and image split will be described in the final report.
 
 
 ##  Results
