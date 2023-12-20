@@ -1,8 +1,8 @@
-pillow
-matplotlib
-numpy
-scikit-image
-torch
-torchvision
-PyYaml
+scikit-image==0.19.3
+matplotlib==3.5.3
+torch==1.7.1+cu110
+Pillow==9.5.0
+torchvision==0.8.2+cu110
+PyYAML==6.0.1
+numpy==1.21.6
 alive_progress
