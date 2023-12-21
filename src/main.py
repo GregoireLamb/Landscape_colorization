@@ -302,6 +302,6 @@ def get_class_penalty(use_precompute=False, path_to_images="../data/data_train",
     return weights
 
 
-if __name__ == "__main__":
-    torch.manual_seed(1234)
-    main()
+# if __name__ == "__main__":
+#     torch.manual_seed(1234)
+#     main()
