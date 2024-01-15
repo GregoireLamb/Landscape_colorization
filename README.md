@@ -10,7 +10,7 @@ _This project aims to use convolutional neural network to colorize landscape ima
 
 **Short project video** [Youtube](https://youtu.be/c5pcWxpPhR0).   
 **Short report** [here](ADL_Assigment_3_1220221.pdf).  
-**Get the application** [here](). _Requires hard disk space_
+**Get the application**: Use the release "demo app" the execution might take some time and need hard disk space.
 
 
 To run the tests, download model_1.pth from the release "final model for Assignment 2 ADL" and place it in the folder "models".
