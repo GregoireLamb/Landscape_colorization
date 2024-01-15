@@ -1,8 +1,6 @@
 import os
 import tkinter as tk
 from tkinter import filedialog
-
-from PIL.Image import isImageType
 from tkinterdnd2 import TkinterDnD, DND_FILES
 from PIL import Image, ImageTk
 from src.backend import colorize  # Assuming colorize is the function you want to call
@@ -127,7 +125,4 @@ class ColorApp:
                     image = Image.open(file_path)
                     photo = ImageTk.PhotoImage(image)
                     image_list.append(photo)
-
         return image_list
-
-

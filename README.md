@@ -1,4 +1,4 @@
-# Landscape colorization using CNN
+# Landscape colorization using CNN and classification approach
 
 This project is developed in the context of the lecture "194.077 Applied Deep Learning" form the TU Wien. 
 
@@ -7,8 +7,14 @@ This project is developed in the context of the lecture "194.077 Applied Deep Le
 
 _This project aims to use convolutional neural network to colorize landscape images._ 
 
-To run the test, download model_1.pth from the release "final model for Assignment 2 ADL" and place it in the folder "models".
-Use python version 3.7.2 (cuda 10.1 and cudnn 7.6.5) running test requires unittest. 
+
+**Short project video** [Youtube](https://youtu.be/c5pcWxpPhR0).   
+**Short report** [here](ADL_Assigment_3_1220221.pdf).  
+**Get the application** [here](). _Requires hard disk space_
+
+
+To run the tests, download model_1.pth from the release "final model for Assignment 2 ADL" and place it in the folder "models".
+Use python version 3.7.2 (cuda 10.1 and cudnn 7.6.5) running test requires unittest. Genrerate the exe file with the command `python -m PyInstaller --onefile --collect-all tkinterdnd2 --name ColorApp colorisation_demo.py`.
 
 
 ## Table of contents
@@ -133,7 +139,7 @@ The test set correspond of 3000 images from the LHQ dataset.:
 
 ### User evaluation
 
-I selected 10 images from the LHQ dataset and asked 10 people to compare the output of Zhang et al and Model_1. 
+I selected 10 images from the LHQ dataset and aske people to compare the output of Zhang et al and Model_1. 
 I selected these images aiming to show that model_1 could be better than Zhang model on some very specific cases.
 The dominance of Zhang model over my model is obvious.
 
